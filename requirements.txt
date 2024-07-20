@@ -9,5 +9,4 @@ flask
 gunicorn
 wget
 mutagen
-ffmpeg-python
 Pillow
