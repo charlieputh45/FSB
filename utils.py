@@ -1,7 +1,8 @@
 import io
 import re
 import asyncio
-import aiohttpfrom config import *
+import aiohttp
+from config import *
 from PIL import Image
 from pyrogram.types import User
 from mutagen.mp3 import MP3
