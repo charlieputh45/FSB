@@ -68,7 +68,7 @@ async def forward_message_to_new_channel(client, message):
                 else:
                     print("Failed to generate thumbnail")   
 
-                file_info = f"<code>{new_caption}</code>\n\n<code>✅ {file_id}</code>"
+                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
 
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler =True)
 
@@ -192,7 +192,7 @@ async def send_msg(client, message):
                 else:
                     print("Failed to generate thumbnail")   
 
-                file_info = f"<code>{new_caption}</code>\n\n<code>✅ {file_id}</code>"
+                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
 
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
 
@@ -259,7 +259,7 @@ async def send_msg(client, message):
                         else:
                             print("Failed to generate thumbnail")  
 
-                        file_info = f"<code>{new_caption}</code>\n\n<code>✅ {file_id}</code>"
+                        file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
 
                         await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
 
