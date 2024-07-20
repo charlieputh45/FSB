@@ -12,14 +12,11 @@ jobs:
           heroku_api_key: ${{secrets.HEROKU_API_KEY}}
           heroku_app_name: ${{secrets.HEROKU_APP_NAME}}
           heroku_email: ${{secrets.HEROKU_EMAIL}}
-          config_file_url: ${{secrets.CONFIG_FILE_URL}}
           usedocker: true
           docker_heroku_process_type: web
           stack: "container"
-          region: "us"
+          region: "eu"
         env:
-          HD_CONFIG_FILE_URL: ${{inputs.CONFIG_FILE_URL}}
+          HD_CONFIG_FILE_URL: ${{secrets.CONFIG_FILE_URL}}
           HD_HEROKU_API_KEY: ${{secrets.HEROKU_API_KEY}}
           HD_HEROKU_APP_NAME: ${{secrets.HEROKU_APP_NAME}}
-          HD_HEROKU_EMAIL: ${{secrets.HEROKU_EMAIL}}
-      
