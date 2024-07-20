@@ -5,11 +5,13 @@ import aiohttp
 import ffmpeg
 from config import *
 from PIL import Image
+from pyrogram.types import User
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
 from mutagen.mp4 import MP4
 from mutagen.id3 import ID3, APIC
 from mutagen import File as MutagenFile
+
 
 async def auto_delete_message(user_message, bot_message):
     try:
@@ -187,3 +189,8 @@ def generate_thumbnail(file_path: str) -> str:
         print(f"Error generating thumbnail: {e}")
         return None
 '''
+
+async def get_user_link(user: User) -> str:
+    user_id = user.id
+    first_name = user.first_name
+    return f'<a href=tg://user?id={user_id}>{first_name}</a>'
