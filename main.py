@@ -63,7 +63,7 @@ async def forward_message_to_new_channel(client, message):
                 await download_initial_part(client, media, file_path, CHUNK_SIZE)
 
                 # Generate a thumbnail
-                thumbnail_path = await generate_combined_thumbnail(file_path)
+                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_INTERVALS, GRID_COLUMNS)
 
                 if thumbnail_path:
                     print(f"Thumbnail generated: {thumbnail_path}")
@@ -254,7 +254,7 @@ async def send_msg(client, message):
                         await download_initial_part(client, media, file_path, CHUNK_SIZE)
 
                         # Generate a thumbnail
-                        thumbnail_path = await generate_combined_thumbnail(file_path)
+                        thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_INTERVALS, GRID_COLUMNS)
 
                         if thumbnail_path:
                             print(f"Thumbnail generated: {thumbnail_path}")
