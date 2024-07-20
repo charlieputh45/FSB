@@ -74,7 +74,7 @@ async def forward_message_to_new_channel(client, message):
 
                 file_info = f"<code>{new_caption}</code>\n\n<code>✅ {file_id}</code>"
 
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
+                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, spoiler=True)
 
                 os.remove(thumbnail_path)
                 os.remove(file_path)
@@ -199,7 +199,7 @@ async def send_msg(client, message):
 
             file_info = f"<code>{new_caption}</code>\n\n<code>✅ {file_id}</code>"
 
-            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
+            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, spoiler=True)
 
             os.remove(thumbnail_path)
             os.remove(file_path)
@@ -265,7 +265,7 @@ async def send_msg(client, message):
 
                         file_info = f"<code>{new_caption}</code>\n\n<code>✅ {file_id}</code>"
 
-                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
+                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, spoiler=True)
 
                         os.remove(thumbnail_path)
                         os.remove(file_path)
