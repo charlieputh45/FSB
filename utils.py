@@ -179,7 +179,7 @@ def generate_thumbnail(file_path: str) -> str:
 
         # Use ffmpeg to generate a thumbnail
         (
-            ffmpeg
+            zender
             .input(file_path, ss='00:00:01')  # Seek to 1 second
             .output(thumbnail_path, vframes=1)
             .run(capture_stdout=True, capture_stderr=True)
