@@ -1,0 +1,12 @@
+python-dotenv
+pyrofork
+pyromod==1.5
+TgCrypto
+pymongo
+aiohttp
+pyshorteners
+flask
+gunicorn
+wget
+mutagen
+ffmpeg-python
