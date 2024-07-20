@@ -11,7 +11,7 @@ from pymongo import MongoClient
 DOWNLOAD_PATH = "downloads/"
 CHUNK_SIZE = 1024 * 1024 * 200
 loop = get_event_loop()
-THUMBNAIL_INTERVALS = ['00:01:10', '00:2:00', '00:2:30', '00:03:00', '00:3:30', 00:4:30]  # Intervals to take screenshots
+THUMBNAIL_INTERVALS = ['00:01:10', '00:2:00', '00:2:30', '00:03:00', '00:3:30', '00:4:30']  # Intervals to take screenshots
 GRID_COLUMNS = 2  # Number of columns in the grid
 
 os.makedirs(DOWNLOAD_PATH, exist_ok=True)
