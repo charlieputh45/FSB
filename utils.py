@@ -2,6 +2,7 @@ import io
 import re
 import asyncio
 import aiohttp
+import ffmpeg as render
 from config import *
 from PIL import Image
 from pyrogram.types import User
@@ -115,7 +116,7 @@ async def generate_combined_thumbnail(file_path: str, intervals: list, grid_colu
             thumbnail_path = f"{file_path}_thumb_{i}.jpg"
             # Use ffmpeg to generate thumbnails at specified intervals
             (
-                ffmpeg
+                render
                 .input(file_path, ss=interval)  # Seek to the interval
                 .output(thumbnail_path, vframes=1)
                 .run(capture_stdout=True, capture_stderr=True)
