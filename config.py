@@ -24,7 +24,6 @@ logging.getLogger("pyrogram").setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
 
-'''
 CONFIG_FILE_URL = environ.get('CONFIG_FILE_URL')
 try:
     if len(CONFIG_FILE_URL) == 0:
@@ -40,8 +39,6 @@ try:
         logger.info(f"CONFIG_FILE_URL: {e}")
 except:
     pass
-
-'''
 
 load_dotenv('config.env', override=True)
 
