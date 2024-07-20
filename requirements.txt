@@ -10,3 +10,4 @@ gunicorn
 wget
 mutagen
 Pillow
+ffmpeg-python
