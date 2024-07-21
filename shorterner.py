@@ -15,7 +15,7 @@ async def tiny(long_url):
 
 async def shorten_url(url):
     try:
-        api_url = "{SHORTERNER_URL}"
+        api_url = "https://{SHORTERNER_URL}/api"
         params = {
             "api": URLSHORTX_API_TOKEN,
             "url": url,
