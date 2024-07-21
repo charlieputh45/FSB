@@ -52,7 +52,7 @@ async def main():
 with app:
     bot_username = (app.get_me()).username
 
-@app.on_message(filters.chat(DB_CHANNEL_ID) & (filters.document | filters.video))
+@app.on_message(filters.chat(DB_CHANNEL_ID) & (filters.document | filters.video | filters.audio))
 async def forward_message_to_new_channel(client, message):
     try:
         media = message.document or message.video or message.audio
