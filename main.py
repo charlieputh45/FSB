@@ -14,7 +14,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 DOWNLOAD_PATH = "downloads/"
 CHUNK_SIZE = 1024 * 1024 * 200
 loop = get_event_loop()
-THUMBNAIL_INTERVALS = ['00:01:10', '00:2:00', '00:2:30', '00:03:00', '00:3:30', '00:4:30']  # Intervals to take screenshots
+THUMBNAIL_COUNT = 6
 GRID_COLUMNS = 2  # Number of columns in the grid
 
 os.makedirs(DOWNLOAD_PATH, exist_ok=True)
@@ -68,9 +68,9 @@ async def forward_message_to_new_channel(client, message):
                 logger.info(f"Downloading initial part of {file_id}...")
 
                 file_path = await app.download_media(media.file_id)
-
+                print("Generating Thumbnail")
                 # Generate a thumbnail
-                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_INTERVALS, GRID_COLUMNS)
+                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
                 if thumbnail_path:
                     print(f"Thumbnail generated: {thumbnail_path}")
@@ -140,7 +140,7 @@ async def handle_get_command(client, message):
                 caption = file_message.caption if file_message.caption else None
                 if caption:
                     new_caption = await remove_unwanted(caption.html)
-                    copy_message = await file_message.copy(chat_id=message.chat.id, caption=f"<code>{caption}</code>", parse_mode=enums.ParseMode.HTML)
+                    copy_message = await file_message.copy(chat_id=message.chat.id, caption=f"<code>{new_caption}</code>", parse_mode=enums.ParseMode.HTML)
                 else:
                     copy_message = await file_message.copy(chat_id=message.chat.id)
 
@@ -158,7 +158,7 @@ async def handle_get_command(client, message):
         except FloodWait as f:
             await asyncio.sleep(f.value)
             if caption:
-                copy_message = await file_message.copy(chat_id=message.chat.id, caption=f"<code>{caption}</code>", parse_mode=enums.ParseMode.HTML)
+                copy_message = await file_message.copy(chat_id=message.chat.id, caption=f"<code>{new_caption}</code>", parse_mode=enums.ParseMode.HTML)
             else:
                 copy_message = await file_message.copy(chat_id=message.chat.id)
 
@@ -194,7 +194,7 @@ async def send_msg(client, message):
                 file_path = await app.download_media(media.file_id)
 
                 # Generate a thumbnail
-                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_INTERVALS, GRID_COLUMNS)
+                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
                 if thumbnail_path:
                     print(f"Thumbnail generated: {thumbnail_path}")
@@ -247,9 +247,9 @@ async def send_msg(client, message):
             for file_message in file_messages:
 
                 media = file_message.document or file_message.video or file_message.audio
-                file_id = file_message.id
 
                 if media:
+                    file_id = file_message.id
                     caption = file_message.caption if file_message.caption else None
 
                     if caption:
@@ -259,9 +259,9 @@ async def send_msg(client, message):
                         logger.info(f"Downloading initial part of {file_id}...")
 
                         file_path = await app.download_media(media.file_id)
-
+                        print("download complete")
                         # Generate a thumbnail
-                        thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_INTERVALS, GRID_COLUMNS)
+                        thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
                         if thumbnail_path:
                             print(f"Thumbnail generated: {thumbnail_path}")
