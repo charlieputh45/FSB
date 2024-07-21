@@ -58,7 +58,7 @@ async def verify_token(user_id, input_token):
     else:
         return f'Token Mismatched ❌'
     
-async def check_access(client, message, user_id, user_data):
+async def check_access(client, message, user_id):
 
     if user_id in user_data:
         time = user_data[user_id]['time']
