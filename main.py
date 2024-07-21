@@ -278,7 +278,7 @@ async def send_msg(client, message):
                         audio_path = await app.download_media(media.file_id)
                         audio_thumb = await get_audio_thumbnail(audio_path)
                         
-                        file_info = f"🎧 <code>{media.title}</code>\n🧑‍🎤 <code>{media.performer}</code>\n\n✅ <code>{file_id}</code>"
+                        file_info = f"🎧 <b>{media.title}</b>\n🧑‍🎤 <b>{media.performer}</b>\n\n✅ <code>{file_id}</code>"
 
                         await app.send_photo(CAPTION_CHANNEL_ID, audio_thumb, caption=file_info)
 
