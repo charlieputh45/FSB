@@ -1,5 +1,7 @@
+import uuid
 from utils import *
 from config import *
+from time import time as tm
 from pyrogram import idle
 from pyromod import listen
 from pyrogram.errors import FloodWait
@@ -7,6 +9,7 @@ from pyrogram import Client, filters, enums
 from shorterner import *
 from asyncio import get_event_loop
 from pymongo import MongoClient
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 DOWNLOAD_PATH = "downloads/"
 CHUNK_SIZE = 1024 * 1024 * 200
@@ -121,7 +124,7 @@ async def get_command(client, message):
 async def handle_get_command(client, message):
     user_id = message.from_user.id
 
-    if not await check_access(client, message, user_id):
+    if not await check_access(message, user_id):
          return    
     
     file_id = message.command[1] if len(message.command) > 1 else None
@@ -346,6 +349,73 @@ async def handle_help_command(client, message):
         await send_msg.delete()
     except Exception as e:
         logger.error(f"{e}")
+
+async def verify_token(user_id, input_token):
+    current_time = tm()
+
+    # Check if the user_id exists in user_data
+    if user_id not in user_data:
+        return 'Token Mismatched ❌' 
+    
+    stored_token = user_data[user_id]['token']
+    if input_token == stored_token:
+        token = str(uuid.uuid4())
+        user_data[user_id] = {"token": token, "time": current_time, "status": "verified"}
+        return f'Token Verified ✅'
+    else:
+        return f'Token Mismatched ❌'
+    
+async def check_access(message, user_id):
+
+    if user_id in user_data:
+        time = user_data[user_id]['time']
+        status = user_data[user_id]['status']
+        expiry = time + TOKEN_TIMEOUT
+        current_time = tm()
+        if current_time < expiry and status == "verified":
+            return True
+        else:
+            button = await update_token(user_id)
+            send_message = await app.send_message(user_id,f'<b>You need to collect your token first 🎟\n(Valid: {get_readable_time(TOKEN_TIMEOUT)})</b>', reply_markup=button)
+            await auto_delete_message(message, send_message)
+    else:
+        button = await genrate_token(user_id)
+        send_message = await app.send_message(user_id,f'<b>You need to collect your token first 🎟\n(Valid: {get_readable_time(TOKEN_TIMEOUT)})</b>', reply_markup=button)
+        await auto_delete_message(message, send_message)
+
+async def update_token(user_id):
+    try:
+        time = user_data[user_id]['time']
+        expiry = time + TOKEN_TIMEOUT
+        if time < expiry:
+            token = user_data[user_id]['token']
+        else:
+            token = str(uuid.uuid4())
+        current_time = tm()
+        user_data[user_id] = {"token": token, "time": current_time, "status": "unverified"}
+        urlshortx = await shorten_url(f'https://telegram.me/{bot_username}?start={token}')
+        tinyurl = await tiny(urlshortx)
+        button = InlineKeyboardMarkup([[InlineKeyboardButton("Collect Token", url=tinyurl)]])
+        return button
+    except Exception as e:
+        logger.error(f"error in update_token: {e}")
+
+async def genrate_token(user_id):
+    try:
+        token = str(uuid.uuid4())
+        current_time = tm()
+        user_data[user_id] = {"token": token, "time": current_time, "status": "unverified"}
+        urlshortx = await shorten_url(f'https://telegram.me/{bot_username}?start={token}')
+        tinyurl = await tiny(urlshortx)
+        button = InlineKeyboardMarkup([[InlineKeyboardButton("Collect Token", url=tinyurl)]])
+        return button
+    except Exception as e:
+        logger.error(f"error in genrate_token: {e}")
+
+async def get_user_link(user: User) -> str:
+    user_id = user.id
+    first_name = user.first_name
+    return f'<a href=tg://user?id={user_id}>{first_name}</a>'
       
 if __name__ == "__main__":
     loop.run_until_complete(main())
