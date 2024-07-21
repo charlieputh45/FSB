@@ -21,6 +21,9 @@ mongo_client = MongoClient(MONGO_URL)
 mongo_db = mongo_client[MONGO_DB_NAME]
 mongo_collection = mongo_db[MONGO_COLLECTION]
 
+user_data = {}
+TOKEN_TIMEOUT = 7200
+
 app = Client(
     "my_bot",
       api_id=API_ID,
