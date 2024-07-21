@@ -295,7 +295,7 @@ async def get_command(client, message):
         await message.reply_text("Enter channel_id")
         channel_id = int((await app.listen(message.chat.id)).text)
 
-        await message.reply_text("Enter channel_id")
+        await message.reply_text("Enter count")
         limit = int((await app.listen(message.chat.id)).text)
 
         await app.send_message(channel_id, "Hi")
