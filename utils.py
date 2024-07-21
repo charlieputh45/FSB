@@ -1,5 +1,6 @@
 import io
 import re
+import random
 import asyncio
 import aiohttp
 import ffmpeg as render
@@ -11,7 +12,7 @@ from mutagen.flac import FLAC
 from mutagen.mp4 import MP4
 from mutagen.id3 import ID3, APIC
 from mutagen import File as MutagenFile
-
+from moviepy.editor import VideoFileClip
 
 async def auto_delete_message(user_message, bot_message):
     try:
@@ -74,9 +75,8 @@ async def extract_movie_info(caption):
         print(e)
     return None, None
 
-async def get_movie_poster(movie_name, release_year, caption):
+async def get_movie_poster(movie_name, release_year):
     tmdb_search_url = f'https://api.themoviedb.org/3/search/multi?api_key={TMDB_API_KEY}&query={movie_name}'
-    season_no, episode_no = await extract_season_episode(caption)
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -159,10 +159,17 @@ async def download_initial_part(client, media, file_path, chunk_size):
                 break
 '''
 
-async def generate_combined_thumbnail(file_path: str, intervals: list, grid_columns: int) -> str:
+async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
     try:
         # List to store individual thumbnails
         thumbnails = []
+
+        # Load the video file to get its duration
+        video = VideoFileClip(file_path)
+        duration = video.duration
+
+        intervals = [random.uniform(0, duration) for _ in range(num_thumbnails)]
+
 
         for i, interval in enumerate(intervals):
             thumbnail_path = f"{file_path}_thumb_{i}.jpg"
