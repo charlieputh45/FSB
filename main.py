@@ -52,6 +52,55 @@ async def main():
 with app:
     bot_username = (app.get_me()).username
 
+@app.on_message(filters.chat(DB_CHANNEL_ID) & (filters.document | filters.video | filters.audio))
+async def forward_message_to_new_channel(client, message):
+    try:
+        media = message.document or message.video or message.audio
+        file_id = message.id
+
+        if media:
+            caption = message.caption if message.caption else None
+
+            if caption:
+                new_caption = await remove_unwanted(caption)
+
+                # Generate file path
+                logger.info(f"Downloading initial part of {file_id}...")
+
+                file_path = await app.download_media(media.file_id)
+                print("Generating Thumbnail")
+                # Generate a thumbnail
+                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+
+                if thumbnail_path:
+                    print(f"Thumbnail generated: {thumbnail_path}")
+                else:
+                    print("Failed to generate thumbnail")   
+
+                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
+
+                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler =True)
+
+                os.remove(thumbnail_path)
+                os.remove(file_path)
+
+                await asyncio.sleep(3)
+            else:
+                audio_path = await app.download_media(media.file_id)
+                audio_thumb = await get_audio_thumbnail(audio_path)
+                
+                file_info = f"🎧 <b>{media.title}</b>\n🧑‍🎤 <b>{media.performer}</b>\n\n<code>🆔 {file_id}</code>"
+
+                await app.send_photo(CAPTION_CHANNEL_ID, audio_thumb, caption=file_info)
+
+                os.remove(audio_path)
+
+                await asyncio.sleep(3)
+
+    except Exception as e:
+        logger.error(f'{e}')    
+
+
 @app.on_message(filters.command("start"))
 async def get_command(client, message): 
      input_token = message.command[1] if len(message.command) > 1 else None
@@ -119,6 +168,134 @@ async def handle_get_command(client, message):
         reply = await message.reply_text("Provide a File Id")
         await auto_delete_message(message, reply)  
 
+# Send Single Command 
+@app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
+async def send_msg(client, message):
+    try:
+        await message.reply_text("send post link")
+        tg_link = (await app.listen(message.chat.id)).text
+
+        msg_id = await extract_tg_link(tg_link)
+
+        file_message = await app.get_messages(DB_CHANNEL_ID, int(msg_id))
+
+        media = file_message.document or file_message.video or file_message.audio
+        file_id = file_message.id
+
+        if media:
+            caption = file_message.caption if file_message.caption else None
+
+            if caption:
+                new_caption = await remove_unwanted(caption)
+
+                # Generate file path
+                logger.info(f"Downloading initial part of {file_id}...")
+
+                file_path = await app.download_media(media.file_id)
+
+                # Generate a thumbnail
+                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+
+                if thumbnail_path:
+                    print(f"Thumbnail generated: {thumbnail_path}")
+                else:
+                    print("Failed to generate thumbnail")   
+
+                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
+
+                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
+
+                os.remove(thumbnail_path)
+                os.remove(file_path)
+
+                await asyncio.sleep(3)
+
+            else:
+                audio_path = await app.download_media(media.file_id)
+                audio_thumb = await get_audio_thumbnail(audio_path)
+                
+                file_info = f"🎧 <b>{media.title}</b>\n🧑‍🎤 <b>{media.performer}</b>\n\n<code>🆔 {file_id}</code>"
+
+                await app.send_photo(CAPTION_CHANNEL_ID, audio_thumb, caption=file_info)
+
+                os.remove(audio_path)
+
+                await asyncio.sleep(3)
+            
+        await message.reply_text("Messages send successfully!")
+    except Exception as e:
+        logger.error(f"{e}")
+
+# Send Multiple Command
+@app.on_message(filters.command("sendm") & filters.user(OWNER_USERNAME))
+async def send_msg(client, message):
+    try:
+        await message.reply_text("send post start link")
+        start_msg = (await app.listen(message.chat.id)).text
+
+        await message.reply_text("send post end link")
+        end_msg = (await app.listen(message.chat.id)).text
+
+        start_msg_id = int(await extract_tg_link(start_msg))
+        end_msg_id = int(await extract_tg_link(end_msg))
+
+        batch_size = 199
+        for start in range(start_msg_id, end_msg_id + 1, batch_size):
+            end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
+            file_messages = await app.get_messages(DB_CHANNEL_ID, range(start, end + 1))
+
+            for file_message in file_messages:
+
+                media = file_message.document or file_message.video or file_message.audio
+
+                if media:
+                    file_id = file_message.id
+                    caption = file_message.caption if file_message.caption else None
+
+                    if caption:
+                        new_caption = await remove_unwanted(caption)
+
+                        # Generate file path
+                        logger.info(f"Downloading initial part of {file_id}...")
+
+                        file_path = await app.download_media(media.file_id)
+                        print("download complete")
+                        # Generate a thumbnail
+                        thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+
+                        if thumbnail_path:
+                            print(f"Thumbnail generated: {thumbnail_path}")
+                        else:
+                            print("Failed to generate thumbnail")  
+
+                        file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
+
+                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
+
+                        os.remove(thumbnail_path)
+                        os.remove(file_path)
+
+                        await asyncio.sleep(3)
+
+                    else:
+                        audio_path = await app.download_media(media.file_id)
+                        audio_thumb = await get_audio_thumbnail(audio_path)
+                        
+                        file_info = f"🎧 <b>{media.title}</b>\n🧑‍🎤 <b>{media.performer}</b>\n\n✅ <code>{file_id}</code>"
+
+                        await app.send_photo(CAPTION_CHANNEL_ID, audio_thumb, caption=file_info)
+
+                        os.remove(audio_path)
+
+                        await asyncio.sleep(3)
+
+        await message.reply_text("Messages send successfully!")
+
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
+
+    except Exception as e:
+        logger.error(f'{e}')
 
 # Delete Commmand
 @app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
