@@ -158,7 +158,7 @@ async def download_initial_part(client, media, file_path, chunk_size):
                 break
 '''
 
-def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
+async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
     try:
         # List to store individual thumbnails
         thumbnails = []
