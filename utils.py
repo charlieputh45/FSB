@@ -3,7 +3,6 @@ import re
 import random
 import asyncio
 import aiohttp
-import ffmpeg as render
 from config import *
 from PIL import Image
 from pyrogram.types import User
@@ -12,7 +11,6 @@ from mutagen.flac import FLAC
 from mutagen.mp4 import MP4
 from mutagen.id3 import ID3, APIC
 from mutagen import File as MutagenFile
-from moviepy.editor import VideoFileClip
 
 async def auto_delete_message(user_message, bot_message):
     try:
@@ -159,27 +157,29 @@ async def download_initial_part(client, media, file_path, chunk_size):
                 break
 '''
 
-async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
+def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
     try:
         # List to store individual thumbnails
         thumbnails = []
 
-        # Load the video file to get its duration
-        video = VideoFileClip(file_path)
-        duration = video.duration
+        # Use ffprobe to get video duration
+        duration_cmd = [
+            'ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
+            '-of', 'default=noprint_wrappers=1:nokey=1', file_path
+        ]
+        duration = float(subprocess.check_output(duration_cmd).strip())
 
+        # Generate random intervals
         intervals = [random.uniform(0, duration) for _ in range(num_thumbnails)]
 
-
+        # Create thumbnails at specified intervals
         for i, interval in enumerate(intervals):
             thumbnail_path = f"{file_path}_thumb_{i}.jpg"
-            # Use ffmpeg to generate thumbnails at specified intervals
-            (
-                render
-                .input(file_path, ss=interval)  # Seek to the interval
-                .output(thumbnail_path, vframes=1)
-                .run(capture_stdout=True, capture_stderr=True)
-            )
+            thumbnail_cmd = [
+                'ffmpeg', '-ss', str(interval), '-i', file_path, 
+                '-frames:v', '1', thumbnail_path, '-y'
+            ]
+            subprocess.run(thumbnail_cmd, capture_output=True, check=True)
             thumbnails.append(thumbnail_path)
 
         # Open all thumbnails and combine them into a grid
@@ -212,7 +212,7 @@ async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_
     except Exception as e:
         print(f"Error generating combined thumbnail: {e}")
         return None
-
+        
 async def get_audio_thumbnail(audio_path):
     audio = MutagenFile(audio_path)
     if isinstance(audio, MP3):
