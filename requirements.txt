@@ -1,5 +1,5 @@
 python-dotenv
-git+https://github.com/5hojib/pyrogram-peer-fix.git
+pyrofork
 pyromod==1.5
 TgCrypto
 pymongo
