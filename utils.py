@@ -158,7 +158,7 @@ async def download_initial_part(client, media, file_path, chunk_size):
                 break
 '''
 
-async def generate_single_thumbnail(file_path: str) -> str:
+async def generate_thumbnail(file_path: str) -> str:
     try:
         # Use ffprobe to get video duration
         duration_cmd = [
