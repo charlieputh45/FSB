@@ -52,54 +52,6 @@ async def main():
 with app:
     bot_username = (app.get_me()).username
 
-@app.on_message(filters.chat(DB_CHANNEL_ID) & (filters.document | filters.video | filters.audio))
-async def forward_message_to_new_channel(client, message):
-    try:
-        media = message.document or message.video or message.audio
-        file_id = message.id
-
-        if media:
-            caption = message.caption if message.caption else None
-
-            if caption:
-                new_caption = await remove_unwanted(caption)
-
-                # Generate file path
-                logger.info(f"Downloading initial part of {file_id}...")
-
-                file_path = await app.download_media(media.file_id)
-                print("Generating Thumbnail")
-                # Generate a thumbnail
-                thumbnail_path = await generate_thumbnail(file_path)
-
-                if thumbnail_path:
-                    print(f"Thumbnail generated: {thumbnail_path}")
-                else:
-                    print("Failed to generate thumbnail")   
-
-                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
-
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler =True)
-
-                os.remove(thumbnail_path)
-                os.remove(file_path)
-
-                await asyncio.sleep(3)
-            else:
-                audio_path = await app.download_media(media.file_id)
-                audio_thumb = await get_audio_thumbnail(audio_path)
-                
-                file_info = f"🎧 <b>{media.title}</b>\n🧑‍🎤 <b>{media.performer}</b>\n\n<code>🆔 {file_id}</code>"
-
-                await app.send_photo(CAPTION_CHANNEL_ID, audio_thumb, caption=file_info)
-
-                os.remove(audio_path)
-
-                await asyncio.sleep(3)
-
-    except Exception as e:
-        logger.error(f'{e}')    
-
 
 @app.on_message(filters.command("start"))
 async def get_command(client, message): 
