@@ -166,14 +166,25 @@ async def generate_thumbnail(file_path: str) -> str:
             '-of', 'default=noprint_wrappers=1:nokey=1', file_path
         ]
         duration = float(subprocess.check_output(duration_cmd).strip())
-
+        
         # Generate a random interval
-        random_interval = random.uniform(0, duration)
+        #random_interval = random.uniform(0, duration)
+
+        # Adjust the duration to account for a 2% reduction
+        adjusted_duration = duration - (duration * 2 / 100)
+
+        # Ensure at least some duration to work with
+        if adjusted_duration <= 0:
+            adjusted_duration = 3
+
+        # Choose the midpoint of the adjusted duration for the thumbnail
+        midpoint = adjusted_duration / 2
+
 
         # Create a thumbnail at the random interval
         thumbnail_path = f"{file_path}_thumb.jpg"
         thumbnail_cmd = [
-            'ffmpeg', '-ss', str(random_interval), '-i', file_path, 
+            'ffmpeg', '-ss', str(midpoint), '-i', file_path, 
             '-frames:v', '1', thumbnail_path, '-y'
         ]
         subprocess.run(thumbnail_cmd, capture_output=True, check=True)
