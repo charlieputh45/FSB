@@ -207,26 +207,14 @@ async def send_msg(client, message):
                     if caption:
                         new_caption = await remove_unwanted(caption)
 
-                        # Generate file path
-                        logger.info(f"Downloading initial part of {file_id}...")
-
-                        file_path = await app.download_media(media.file_id)
-                        print("download complete")
                         # Generate a thumbnail
-                        thumbnail_path = await generate_thumbnail(file_path)
-
-                        if thumbnail_path:
-                            print(f"Thumbnail generated: {thumbnail_path}")
-                        else:
-                            print("Failed to generate thumbnail")  
+                        thumb_path = await app.download_media(str(media.thumbs[0].file_id))
 
                         file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
 
-                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
+                        await app.send_photo(CAPTION_CHANNEL_ID, thumb_path, caption=file_info, has_spoiler=True)
 
-                        os.remove(thumbnail_path)
-                        os.remove(file_path)
-
+                        os.remove(thumb_path)
                         await asyncio.sleep(3)
 
                     else:
