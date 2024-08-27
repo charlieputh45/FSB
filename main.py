@@ -184,13 +184,8 @@ async def download(client, message):
     await message.reply_text("Messages send successfully!")
     
 async def progress(current, total):
-    if total == 0:
-        logger.error("Total is zero, cannot calculate progress.")
-        return
+    print(f"{current * 100 / total:.1f}%")
 
-    percentage = current * 100 / total
-    logger.info(f"{percentage:.1f}%")
-                
 # Delete Commmand
 @app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
 async def get_command(client, message):
