@@ -189,7 +189,7 @@ async def generate_thumbnail(file_path: str) -> str:
         ]
         subprocess.run(thumbnail_cmd, capture_output=True, check=True)
 
-        return thumbnail_path
+        return thumbnail_path, duration
     except Exception as e:
         print(f"Error generating thumbnail: {e}")
         return None        
