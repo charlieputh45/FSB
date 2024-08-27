@@ -171,7 +171,7 @@ async def download(client, message):
             caption = file_message.caption
             if media:
                 logger.info(f"Downloading {file_id}...")
-                file_path = await app.download_media(media.file_id, file_name=f"{file_name}", progress=progress)
+                file_path = await app.download_media(media.file_id, file_name=f"{caption}", progress=progress)
                 logger.info(f"Generating Thumbnail {file_id}...")
                 thumbnail_path = await generate_thumbnail(file_path)
                 logger.info(f"Uploading {file_id}...")
