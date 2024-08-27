@@ -184,8 +184,10 @@ async def download(client, message):
     await message.reply_text("Messages send successfully!")
     
 async def progress(current, total):
+    if total == 0:
+        return
     print(f"{current * 100 / total:.1f}%")
-
+    
 # Delete Commmand
 @app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
 async def get_command(client, message):
