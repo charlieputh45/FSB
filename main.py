@@ -171,11 +171,11 @@ async def download(client, message):
             file_name = file_message.caption
             if media:
                 logger.info(f"Downloading {file_id}...")
-                file_path = await app.download_media(media.file_id, file_name=f"{file_name}", progress=progress_callback, progress_args=("Downloading...", message.chat.id))
+                file_path = await app.download_media(media.file_id, progress=progress_callback, progress=progress)
                 logger.info(f"Generating Thumbnail {file_id}...")
                 thumbnail_path = await generate_thumbnail(file_path)
                 logger.info(f"Uploading {file_id}...")
-                upload = await app.send_video(DB_CHANNEL_ID, video=file_path, caption=file_name, thumb=thumbnail_path, progress=upload_progress_callback, progress_args=("Uploading...", message.chat.id))
+                upload = await app.send_video(DB_CHANNEL_ID, video=file_path, caption=file_name, thumb=thumbnail_path, progress=progress)
                 new_caption = await remove_unwanted(caption)
                 file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{upload.id}</code>"
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
@@ -183,27 +183,8 @@ async def download(client, message):
                 os.remove(file_path) 
     await message.reply_text("Messages send successfully!")
     
-last_progress = {}
-progress_message_id = {} 
-
-async def progress_callback(current, total, message, chat_id):
-    global last_progress, progress_message_id
-    
-    # This function is called to update progress
-    percent = (current / total) * 100 if total > 0 else 0
-    rounded_percent = round(percent, 2)
-    if chat_id not in progress_message_id:
-        progress_message = f"{percent:.2f}% downloaded"
-        sent_message = await app.send_message(chat_id, progress_message)
-        status = await app.send_message(chat_id, progress_message)
-        progress_message_id[chat_id] = sent_message.id
-        last_progress[chat_id] = rounded_percent
-    else:
-        if rounded_percent != last_progress.get(chat_id, -1):
-            progress_message = f"{rounded_percent:.2f}% downloaded"
-            await app.edit_message_text(chat_id, progress_message_id[chat_id], progress_message)
-            last_progress[chat_id] = rounded_percent
-    await asyncio.sleep(3)
+async def progress(current, total):
+    logger.info(f"{current * 100 / total:.1f}%")
                 
 # Delete Commmand
 @app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
