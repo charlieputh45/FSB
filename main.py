@@ -161,18 +161,6 @@ async def send_msg(client, message):
                 os.remove(file_path)
 
                 await asyncio.sleep(3)
-
-            else:
-                audio_path = await app.download_media(media.file_id)
-                audio_thumb = await get_audio_thumbnail(audio_path)
-                
-                file_info = f"🎧 <b>{media.title}</b>\n🧑‍🎤 <b>{media.performer}</b>\n\n<code>🆔 {file_id}</code>"
-
-                await app.send_photo(CAPTION_CHANNEL_ID, audio_thumb, caption=file_info)
-
-                os.remove(audio_path)
-
-                await asyncio.sleep(3)
             
         await message.reply_text("Messages send successfully!")
     except Exception as e:
@@ -207,25 +195,19 @@ async def send_msg(client, message):
                     if caption:
                         new_caption = await remove_unwanted(caption)
 
+                        # Generate file path
+                        logger.info(f"Downloading {file_id}...")
+
+                        file_path = await app.download_media(media.file_id)
                         # Generate a thumbnail
-                        thumb_path = await app.download_media(str(media.thumbs[0].file_id))
+                        thumbnail_path = await generate_thumbnail(file_path)
 
                         file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
 
-                        await app.send_photo(CAPTION_CHANNEL_ID, thumb_path, caption=file_info, has_spoiler=True)
+                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
 
-                        os.remove(thumb_path)
-                        await asyncio.sleep(3)
-
-                    else:
-                        audio_path = await app.download_media(media.file_id)
-                        audio_thumb = await get_audio_thumbnail(audio_path)
-                        
-                        file_info = f"🎧 <b>{media.title}</b>\n🧑‍🎤 <b>{media.performer}</b>\n\n✅ <code>{file_id}</code>"
-
-                        await app.send_photo(CAPTION_CHANNEL_ID, audio_thumb, caption=file_info)
-
-                        os.remove(audio_path)
+                        os.remove(thumbnail_path)
+                        os.remove(file_path)
 
                         await asyncio.sleep(3)
 
