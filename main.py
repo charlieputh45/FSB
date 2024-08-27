@@ -175,7 +175,7 @@ async def download(client, message):
                 logger.info(f"Generating Thumbnail {file_id}...")
                 thumbnail_path = await generate_thumbnail(file_path)
                 logger.info(f"Uploading {file_id}...")
-                upload = await app.send_video(DB_CHANNEL_ID, video=file_path, caption=f"<code>{caption}</code>", has_spoiler=True, thumb=thumbnail_path, progress=progress)
+                upload = await app.send_video(DB_CHANNEL_ID, video=file_path, caption=f"<code>{caption}</code>", has_spoiler=True, width=480, height=320, thumb=thumbnail_path, progress=progress)
                 new_caption = await remove_unwanted(caption)
                 file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{upload.id}</code>"
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
