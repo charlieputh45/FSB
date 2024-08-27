@@ -171,23 +171,17 @@ async def download(client, message):
             caption = file_message.caption
             if media:
                 logger.info(f"Downloading {file_id}...")
-                file_path = await app.download_media(media.file_id, file_name=f"{caption}", progress=progress)
+                file_path = await app.download_media(media.file_id, file_name=f"{caption}")
                 logger.info(f"Generating Thumbnail {file_id}...")
                 thumbnail_path, duration = await generate_thumbnail(file_path)
                 logger.info(f"Uploading {file_id}...")
-                upload = await app.send_video(DB_CHANNEL_ID, video=file_path, caption=f"<code>{caption}</code>", has_spoiler=True, duration=duration, width=480, height=320, thumb=thumbnail_path, progress=progress)
+                upload = await app.send_video(DB_CHANNEL_ID, video=file_path, caption=f"<code>{caption}</code>", has_spoiler=True, duration=duration, width=480, height=320, thumb=thumbnail_path)
                 new_caption = await remove_unwanted(caption)
                 file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{upload.id}</code>"
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
                 os.remove(thumbnail_path)     
                 os.remove(file_path) 
-    await message.reply_text("Messages send successfully!")
-    
-async def progress(current, total):
-    if total == 0:
-        return
-    print(f"{current * 100 / total:.1f}%")
-    
+    await message.reply_text("Messages send successfully!")    
 # Delete Commmand
 @app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
 async def get_command(client, message):
