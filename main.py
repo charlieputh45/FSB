@@ -127,7 +127,7 @@ async def send_msg(client, message):
 
                         file_path = await app.download_media(media.file_id)
                         # Generate a thumbnail
-                        thumbnail_path = await generate_thumbnail(file_path)
+                        thumbnail_path, duration = await generate_thumbnail(file_path)
 
                         file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
 
