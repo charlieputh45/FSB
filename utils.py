@@ -184,8 +184,8 @@ async def generate_thumbnail(file_path: str) -> str:
         # Create a thumbnail at the random interval
         thumbnail_path = f"{file_path}_thumb.jpg"
         thumbnail_cmd = [
-            'ffmpeg', '-i', file_path, '-ss', str(random_interval),
-            '-frames:v', '1', '-vf', 'scale=1280:-1', thumbnail_path, '-y'
+            'ffmpeg', '-ss', str(random_interval), '-i', file_path, 
+            '-frames:v', '1', thumbnail_path, '-y'
         ]
         subprocess.run(thumbnail_cmd, capture_output=True, check=True)
 
