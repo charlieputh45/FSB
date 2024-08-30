@@ -106,7 +106,7 @@ async def get_duration(file_path: str) -> str:
         ]
         duration = float(subprocess.check_output(duration_cmd).strip())
         
-        random_interval = random.uniform(0, duration)
+        #random_interval = random.uniform(0, duration)
 
         # Adjust the duration to account for a 2% reduction
         #adjusted_duration = duration - (duration * 2 / 100)
@@ -120,11 +120,11 @@ async def get_duration(file_path: str) -> str:
 
 
         # Create a thumbnail at the random interval
-        thumbnail_path = f"{file_path}_thumb.jpg"
-        thumbnail_cmd = [
-            'ffmpeg', '-ss', str(random_interval), '-i', file_path, 
-            '-frames:v', '1', thumbnail_path, '-y'
-        ]
+        #thumbnail_path = f"{file_path}_thumb.jpg"
+        #thumbnail_cmd = [
+           # 'ffmpeg', '-ss', str(random_interval), '-i', file_path, 
+           # '-frames:v', '1', thumbnail_path, '-y'
+        #]
         #subprocess.run(thumbnail_cmd, capture_output=True, check=True)
 
         return duration
