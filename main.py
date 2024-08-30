@@ -1,56 +1,17 @@
-import uuid
 import time
-from utils import *
-from config import *
-from time import time as tm
-from pyrogram import idle
-from pyromod import listen
-from pyrogram.errors import FloodWait
 from pyrogram import Client, filters, enums
-from shorterner import *
-from asyncio import get_event_loop
-from pymongo import MongoClient
-
-DOWNLOAD_PATH = "downloads/"
-CHUNK_SIZE = 1024 * 1024 * 200
-loop = get_event_loop()
-THUMBNAIL_COUNT = 6
-GRID_COLUMNS = 2  # Number of columns in the grid
-
-os.makedirs(DOWNLOAD_PATH, exist_ok=True)
-
-MONGO_COLLECTION = "users"
-mongo_client = MongoClient(MONGO_URL)
-mongo_db = mongo_client[MONGO_DB_NAME]
-mongo_collection = mongo_db[MONGO_COLLECTION]
-
-user_data = {}
-TOKEN_TIMEOUT = 7200
+from config import *
+from utils import *
 
 app = Client(
     "my_bot",
-      api_id=API_ID,
-      api_hash=API_HASH, 
-      bot_token=BOT_TOKEN, 
-      workers=1000, 
-      parse_mode=enums.ParseMode.HTML,
-      in_memory=True)
-
-user = Client(
-                "userbot",
-                api_id=int(API_ID),
-                api_hash=API_HASH,
-                session_string=STRING_SESSION,
-                no_updates = True
-            )
-
-
-async def main():
-    async with app, user:
-        await idle() 
-
-with app:
-    bot_username = (app.get_me()).username
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN,
+    workers=1000,
+    parse_mode=enums.ParseMode.HTML,
+    in_memory=True
+)
 
 async def progress(current, total, message, start_time, last_edit_time):
     percentage = current * 100 / total
@@ -75,7 +36,6 @@ async def progress(current, total, message, start_time, last_edit_time):
         # Update the last edit time
         last_edit_time[0] = time.time()
 
-    
 @app.on_message((filters.document | filters.video))
 async def pyro_task(client, message):
     custom_thumb = f"downloads/photo.jpg"
@@ -86,19 +46,14 @@ async def pyro_task(client, message):
     start_time = time.time()
     last_edit_time = [start_time]  # Store as list to pass by reference
 
-    try:
-        # Download the media and update the progress
-        file_path = await app.download_media(
-            message, 
-            progress=progress,
-            progress_args=(progress_msg, start_time, last_edit_time)  # Pass the message object, start time, and last edit time to the progress function
-        )
-        # Edit the message to indicate the download is complete
-        await progress_msg.delete()
-
-        duration = await get_duration(file_path)
-        if os.path.exists(custom_thumb):
-            await app.send_video(chat_id=message.chat.id, 
+    # Download the media and update the progress
+    file_path = await app.download_media(
+        message, 
+        progress=progress,
+        progress_args=(progress_msg, start_time, last_edit_time)  # Pass the message object, start time, and last edit time to the progress function
+    )
+    duration = await get_duration(file_path)
+    await app.send_video(chat_id=message.chat.id, 
                                         video=file_path, 
                                         caption=f"<code>{message.caption}</code>", 
                                         duration=duration, 
@@ -107,46 +62,12 @@ async def pyro_task(client, message):
                                         thumb=custom_thumb, 
                                         progress=progress, 
                                         progress_args=(progress_msg, start_time, last_edit_time))
-        else:
-            await progress_msg.edit_text('Add Custom thumb')
-    except Exception as e:
-        logger.error(f"An error occurred: {str(e)}")
-        await message.reply_text(f"Failed: {str(e)}")
-    finally:
-         # Clean up
-         if os.path.exists(custom_thumb):
-             os.remove(custom_thumb)
-         if os.path.exists(file_path):
-             os.remove(file_path)
-         # Edit the message to indicate the download is complete
-         await progress_msg.edit_text('Upload Completed') 
+    # Edit the message to indicate the download is complete
+    await progress_msg.edit_text("Download complete!")
 
 @app.on_message(filters.photo)
 async def get_photo(client, message):
     await app.download_media(message, file_name='photo.jpg')
     await message.delete()
 
-
-# Delete Commmand
-@app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
-async def get_command(client, message):
-    try:
-        await message.reply_text("Enter channel_id")
-        channel_id = int((await app.listen(message.chat.id)).text)
-
-        await message.reply_text("Enter count")
-        limit = int((await app.listen(message.chat.id)).text)
-
-        await app.send_message(channel_id, "Hi")
-
-        try:
-            async for message in user.get_chat_history(channel_id, limit):
-                await message.delete()
-        except Exception as e:
-            logger.error(f"Error deleting messages: {e}")
-        await user.send_message(channel_id, "done")
-    except Exception as e:
-        logger.error(f"Error : {e}")
-      
-if __name__ == "__main__":
-    loop.run_until_complete(main())
+app.run()
