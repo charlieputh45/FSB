@@ -40,7 +40,7 @@ async def progress(current, total, message, last_edit_time, last_data):
         last_edit_time[0] = time.time()
         last_data[0] = current
 
-@app.on_message((filters.document | filters.video))
+@app.on_message(filters.private & (filters.document | filters.video))
 async def pyro_task(client, message):
     start_time = time.time()
     last_edit_time = [start_time]  # Store as list to pass by reference
@@ -68,20 +68,25 @@ async def pyro_task(client, message):
             await message.reply_text("Please set a custom thumbnail first.")
             return
             
-        await app.send_video(chat_id=message.chat.id, 
-                                            video=file_path, 
-                                            caption=f"<code>{message.caption}</code>", 
-                                            duration=duration, 
-                                            width=480, 
-                                            height=320, 
-                                            thumb=thumb_path, 
-                                            progress=progress, 
-                                            progress_args=(progress_msg, last_edit_time, last_data))
-        await progress_msg.edit_text("Upload complete!")
+        send_msg = await app.send_video(DB_CHANNEL_ID, 
+                                        video=file_path, 
+                                        caption=f"<code>{message.caption}</code>", 
+                                        duration=duration, 
+                                        width=480, 
+                                        height=320, 
+                                        thumb=thumb_path, 
+                                        progress=progress, 
+                                        progress_args=(progress_msg, last_edit_time, last_data))
+        await progress_msg.edit_text("Uploaded ✅!")
+
+        new_caption = await remove_unwanted(caption)
+        file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{send_msg.id}</code>"
+        await app.send_photo(CAPTION_CHANNEL_ID, thumb_path, caption=file_info)
+        
     except Exception as e:
         logger.error(f'{e}')
     finally:
-        os.remove(file_path)
+        os.remove(file_path
         os.remove(thumb_path)
 
 app.run()
