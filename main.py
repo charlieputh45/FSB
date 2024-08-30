@@ -76,7 +76,7 @@ async def progress(current, total, message, start_time, last_edit_time):
         last_edit_time[0] = time.time()
 
     
-@app.on_message((filters.document | filters.video))
+@app.on_message(filters.document | filters.video)
 async def pyro_task(client, message):
     custom_thumb = f"downloads/photo.jpg"
     # Send an initial message to display the progress
@@ -87,27 +87,35 @@ async def pyro_task(client, message):
     last_edit_time = [start_time]  # Store as list to pass by reference   
 
     logger.info(f"Downloading {message.caption}...")
-    # Download the media and update the progress
-    file_path = await app.download_media(message, 
-                                         progress=progress, 
-                                         progress_args=(progress_msg, start_time, last_edit_time)
-                                         )
-    duration = await get_duration(file_path)
-    logger.info(f"Uploading {message.caption}...")
+    try:
+        # Download the media and update the progress
+        file_path = await app.download_media(message, 
+                                             progress=progress, 
+                                             progress_args=(progress_msg, start_time, last_edit_time)
+                                             )
+        duration = await get_duration(file_path)
+        logger.info(f"Uploading {message.caption}...")
 
-    await app.send_video(chat_id=message.chat.id, 
-                         video=file_path, 
-                         caption=f"<code>{message.caption}</code>", 
-                         duration=duration, 
-                         width=480, 
-                         height=320, 
-                         thumb=custom_thumb, 
-                         progress=progress, 
-                         progress_args=(progress_msg, start_time, last_edit_time))
-    
-    os.remove(custom_thumb) 
-    # Edit the message to indicate the download is complete
-    await progress_msg.delete() 
+        await app.send_video(chat_id=message.chat.id, 
+                             video=file_path, 
+                             caption=f"<code>{message.caption}</code>", 
+                             duration=duration, 
+                             width=480, 
+                             height=320, 
+                             thumb=custom_thumb, 
+                             progress=progress, 
+                             progress_args=(progress_msg, start_time, last_edit_time))
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        await message.reply_text(f"Failed: {str(e)}")
+    finally:
+        # Clean up
+        if os.path.exists(custom_thumb):
+            os.remove(custom_thumb) 
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        # Edit the message to indicate the download is complete
+        await progress_msg.delete() 
                 
 @app.on_message(filters.photo)
 async def get_photo(client, message):
