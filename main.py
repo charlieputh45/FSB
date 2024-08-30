@@ -1,4 +1,5 @@
 import uuid
+import time
 from utils import *
 from config import *
 from time import time as tm
@@ -9,7 +10,6 @@ from pyrogram import Client, filters, enums
 from shorterner import *
 from asyncio import get_event_loop
 from pymongo import MongoClient
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 DOWNLOAD_PATH = "downloads/"
 CHUNK_SIZE = 1024 * 1024 * 200
@@ -51,137 +51,70 @@ async def main():
 
 with app:
     bot_username = (app.get_me()).username
+
+async def progress(current, total, message, start_time, last_edit_time):
+    percentage = current * 100 / total
+    bar_length = 20  # Length of the progress bar
+    dots = int(bar_length * (current / total))
+    bar = '●' * dots + '○' * (bar_length - dots)
     
-# Send Single Command 
-@app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
-async def send_msg(client, message):
-    try:
-        await message.reply_text("send post link")
-        tg_link = (await app.listen(message.chat.id)).text
+    # Calculate the download speed in MB/s
+    elapsed_time = time.time() - start_time
+    speed = (current / 1024 / 1024) / elapsed_time  # MB per second
 
-        msg_id = await extract_tg_link(tg_link)
+    # Only edit the message if at least 3 seconds have passed since the last edit
+    if time.time() - last_edit_time[0] >= 3:
+        progress_message = (
+            f"[{bar}] {percentage:.1f}%\n"
+            f"Speed: {speed:.2f} MB/s"
+        )
+        
+        # Edit the message with the new progress and speed
+        await message.edit_text(progress_message)
+        
+        # Update the last edit time
+        last_edit_time[0] = time.time()
 
-        file_message = await app.get_messages(DB_CHANNEL_ID, int(msg_id))
-
-        media = file_message.document or file_message.video or file_message.audio
-        file_id = file_message.id
-
-        if media:
-            caption = file_message.caption if file_message.caption else None
-
-            if caption:
-                new_caption = await remove_unwanted(caption)
-
-                # Generate file path
-                logger.info(f"Downloading {file_id}...")
-
-                file_path = await app.download_media(media.file_id)
-
-                # Generate a thumbnail
-                thumbnail_path = await generate_thumbnail(file_path)
-
-                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
-
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
-
-                os.remove(thumbnail_path)
-                os.remove(file_path)
-
-                await asyncio.sleep(3)
-            
-        await message.reply_text("Messages send successfully!")
-    except Exception as e:
-        logger.error(f"{e}")
-
-# Send Multiple Command
-@app.on_message(filters.command("sendm") & filters.user(OWNER_USERNAME))
-async def send_msg(client, message):
-    try:
-        await message.reply_text("send post start link")
-        start_msg = (await app.listen(message.chat.id)).text
-
-        await message.reply_text("send post end link")
-        end_msg = (await app.listen(message.chat.id)).text
-
-        start_msg_id = int(await extract_tg_link(start_msg))
-        end_msg_id = int(await extract_tg_link(end_msg))
-
-        batch_size = 199
-        for start in range(start_msg_id, end_msg_id + 1, batch_size):
-            end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
-            file_messages = await app.get_messages(DB_CHANNEL_ID, range(start, end + 1))
-
-            for file_message in file_messages:
-
-                media = file_message.document or file_message.video or file_message.audio
-
-                if media:
-                    file_id = file_message.id
-                    caption = file_message.caption if file_message.caption else None
-
-                    if caption:
-                        new_caption = await remove_unwanted(caption)
-
-                        # Generate file path
-                        logger.info(f"Downloading {file_id}...")
-
-                        file_path = await app.download_media(media.file_id)
-                        # Generate a thumbnail
-                        thumbnail_path, duration = await generate_thumbnail(file_path)
-
-                        file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
-
-                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
-
-                        os.remove(thumbnail_path)
-                        os.remove(file_path)
-
-                        await asyncio.sleep(3)
-
-        await message.reply_text("Messages send successfully!")
-
-    except FloodWait as e:
-        await asyncio.sleep(e.value)
-
-    except Exception as e:
-        logger.error(f'{e}')
-
-@app.on_message(filters.command("download") & filters.user(OWNER_USERNAME))
-async def download(client, message):
     
-    await message.reply_text("send post start link")
-    start_msg = (await app.listen(message.chat.id)).text
+@app.on_message((filters.document | filters.video))
+async def pyro_task(client, message):
+    custom_thumb = f"downloads/photo.jpg"
+    # Send an initial message to display the progress
+    progress_msg = await message.reply_text("Starting download...")
 
-    await message.reply_text("send post end link")
-    end_msg = (await app.listen(message.chat.id)).text
+    # Record the start time and initialize the last edit time
+    start_time = time.time()
+    last_edit_time = [start_time]  # Store as list to pass by reference   
 
-    channel_id = int(await extract_channel_id(start_msg))
+    logger.info(f"Downloading {message.caption}...")
+    # Download the media and update the progress
+    file_path = await app.download_media(message, 
+                                         progress=progress, 
+                                         progress_args=(progress_msg, start_time, last_edit_time)
+                                         )
+    duration = await get_duration(file_path)
+    logger.info(f"Uploading {message.caption}...")
 
-    start_msg_id = int(await extract_tg_link(start_msg))
-    end_msg_id = int(await extract_tg_link(end_msg))
+    await app.send_video(chat_id=message.chat.id, 
+                         video=file_path, 
+                         caption=f"<code>{message.caption}</code>", 
+                         duration=duration, 
+                         width=480, 
+                         height=320, 
+                         thumb=custom_thumb, 
+                         progress=progress, 
+                         progress_args=(progress_msg, start_time, last_edit_time))
+    
+    os.remove(custom_thumb) 
+    # Edit the message to indicate the download is complete
+    await progress_msg.delete() 
+                
+@app.on_message(filters.photo)
+async def get_photo(client, message):
+    await app.download_media(message, file_name='photo.jpg')
+    await message.delete()
 
-    batch_size = 199
-    for start in range(start_msg_id, end_msg_id + 1, batch_size):
-        end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
-        file_messages = await app.get_messages(channel_id, range(start, end + 1))
 
-        for file_message in file_messages:
-            media = file_message.document or file_message.video
-            file_id = file_message.id
-            caption = file_message.caption
-            if media:
-                logger.info(f"Downloading {file_id}...")
-                file_path = await app.download_media(media.file_id, file_name=f"{caption}")
-                logger.info(f"Generating Thumbnail {file_id}...")
-                thumbnail_path, duration = await generate_thumbnail(file_path)
-                logger.info(f"Uploading {file_id}...")
-                upload = await app.send_video(DB_CHANNEL_ID, video=file_path, caption=f"<code>{caption}</code>", has_spoiler=True, duration=duration, width=480, height=320, thumb=thumbnail_path)
-                new_caption = await remove_unwanted(caption)
-                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{upload.id}</code>"
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
-                os.remove(thumbnail_path)     
-                os.remove(file_path) 
-    await message.reply_text("Messages send successfully!")    
 # Delete Commmand
 @app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
 async def get_command(client, message):
