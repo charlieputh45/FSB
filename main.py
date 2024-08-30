@@ -51,7 +51,7 @@ async def pyro_task(client, message):
     # Listen for a photo message
     photo_msg = await app.listen(message.chat.id, filters=filters.photo)
 
-    thumb_path = await app.download_media(photo_msg, file_name='photo_{message.id}.jpg')
+    thumb_path = await app.download_media(photo_msg, file_name=f'photo_{message.id}.jpg')
     await photo_msg.delete()
     
     # Send an initial message to display the progress
