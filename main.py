@@ -3,6 +3,7 @@ import time
 from pyrogram import Client, filters, enums
 from config import *
 from utils import *
+from pyromod import listen
 
 app = Client(
     "my_bot",
@@ -40,32 +41,39 @@ async def progress(current, total, message, last_edit_time, last_data):
 
 @app.on_message((filters.document | filters.video))
 async def pyro_task(client, message):
-    custom_thumb = f"downloads/photo.jpg"
-    
-    # Check if the custom thumbnail exists
-    if not os.path.exists(custom_thumb):
-        await message.reply_text("Please set a custom thumbnail first.")
-        return
-
     start_time = time.time()
     last_edit_time = [start_time]  # Store as list to pass by reference
     last_data = [0]  # Track the last amount of data transferred
     caption = message.caption
+    
+    rply = await message.reply_text("Please send a photo")
+    # Listen for a photo message
+    photo_msg = await app.listen(message.chat.id, filters=filters.photo)
+
+    thumb_path = await app.download_media(photo_msg, file_name='photo_{message.id}.jpg')
+    await photo_msg.delete()
+    
     # Send an initial message to display the progress
-    progress_msg = await message.reply_text("Starting download...")
+    progress_msg = await rply.edit_text("Starting download...")
     try:
         # Download the media and update the progress
         file_path = await app.download_media(message, file_name=f"{caption}", 
                                              progress=progress, progress_args=(progress_msg, last_edit_time, last_data))
         
         duration = await get_duration(file_path)
+        
+        # Check if the custom thumbnail exists
+        if not os.path.exists(thumb_path):
+            await message.reply_text("Please set a custom thumbnail first.")
+            return
+            
         await app.send_video(chat_id=message.chat.id, 
                                             video=file_path, 
                                             caption=f"<code>{message.caption}</code>", 
                                             duration=duration, 
                                             width=480, 
                                             height=320, 
-                                            thumb=custom_thumb, 
+                                            thumb=thumb_path, 
                                             progress=progress, 
                                             progress_args=(progress_msg, last_edit_time, last_data))
         await progress_msg.edit_text("Upload complete!")
@@ -73,11 +81,6 @@ async def pyro_task(client, message):
         logger.error(f'{e}')
     finally:
         os.remove(file_path)
-        os.remove(custom_thumb)
-
-@app.on_message(filters.photo)
-async def get_photo(client, message):
-    await app.download_media(message, file_name='photo.jpg')
-    await message.delete()
+        os.remove(thumb_path)
 
 app.run()
