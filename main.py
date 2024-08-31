@@ -86,7 +86,7 @@ async def pyro_task(client, message):
     except Exception as e:
         logger.error(f'{e}')
     finally:
-        os.remove(file_path
+        os.remove(file_path)
         os.remove(thumb_path)
 
 app.run()
