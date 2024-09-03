@@ -39,7 +39,7 @@ async def progress(current, total, message, last_edit_time, last_data):
         last_edit_time[0] = time.time()
         last_data[0] = current
 
-@app.on_message(filters.private & (filters.document | filters.video))
+@app.on_message(filters.private & (filters.document | filters.video | filters.photo))
 async def pyro_task(client, message):
     start_time = time.time()
     last_edit_time = [start_time]  # Store as list to pass by reference
