@@ -17,6 +17,9 @@ app = Client(
     in_memory=True
 )
 
+# Variable to store the has_spoiler setting
+has_spoiler = [False]  # Using a list to allow passing by reference
+
 async def progress(current, total, message, last_edit_time, last_data):
     percentage = current * 100 / total
     bar_length = 20  # Length of the progress bar
@@ -41,6 +44,29 @@ async def progress(current, total, message, last_edit_time, last_data):
         last_edit_time[0] = time.time()
         last_data[0] = current
 
+@app.on_message(filters.private & filters.command("setting"))
+async def setting_handler(client, message):
+    # Send a message with True and False buttons
+    await message.reply_text(
+        "Select the spoiler setting:",
+        reply_markup=types.InlineKeyboardMarkup(
+            [
+                [types.InlineKeyboardButton("✅ True", callback_data="set_spoiler_true")],
+                [types.InlineKeyboardButton("❌ False", callback_data="set_spoiler_false")]
+            ]
+        )
+    )
+
+@app.on_callback_query(filters.regex(r"set_spoiler_(true|false)"))
+async def spoiler_callback(client, callback_query):
+    global has_spoiler
+    # Update the has_spoiler value based on the selected button
+    has_spoiler[0] = callback_query.data == "set_spoiler_true"
+    await callback_query.message.edit_text(
+        f"Spoiler setting updated to: {has_spoiler[0]}"
+    )
+    await callback_query.answer(f"Set to {has_spoiler[0]}")
+
 @app.on_message(filters.private & (filters.document | filters.video | filters.photo))
 async def pyro_task(client, message):
     start_time = time.time()
@@ -60,24 +86,10 @@ async def pyro_task(client, message):
     # Initialize has_spoiler toggle
     has_spoiler = [False]  # Use a list to allow passing by reference
     
-    # Send an initial message with the toggle button
+    # Send an initial message to display the progress
     await asyncio.sleep(3)
-    progress_msg = await rply.edit_text("Starting download...",
-        reply_markup=types.InlineKeyboardMarkup(
-            [[types.InlineKeyboardButton(f"Toggle Spoiler: {has_spoiler[0]}", callback_data="toggle_spoiler")]]
-        )
-    )
+    progress_msg = await rply.edit_text("Starting download...")
     
-    @app.on_callback_query(filters.regex("toggle_spoiler"))
-    async def toggle_spoiler(client, callback_query):
-        has_spoiler[0] = not has_spoiler[0]
-        await callback_query.message.edit_text(
-            "Starting download...",
-            reply_markup=types.InlineKeyboardMarkup(
-                [[types.InlineKeyboardButton(f"Toggle Spoiler: {has_spoiler[0]}", callback_data="toggle_spoiler")]]
-            )
-        )
-        
     try:
         await asyncio.sleep(3)
         # Download the media and update the progress
@@ -96,7 +108,7 @@ async def pyro_task(client, message):
         send_msg = await app.send_video(DB_CHANNEL_ID, 
                                         video=file_path, 
                                         caption=f"<code>{message.caption}</code>",
-                                        has_spoiler=False,
+                                        has_spoiler=has_spoiler[0],
                                         duration=duration, 
                                         width=480, 
                                         height=320, 
@@ -109,7 +121,7 @@ async def pyro_task(client, message):
         new_caption = await remove_unwanted(caption)
         file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{send_msg.id}</code>"
         await asyncio.sleep(3)
-        await app.send_photo(CAPTION_CHANNEL_ID, thumb_path, caption=file_info, has_spoiler=False)
+        await app.send_photo(CAPTION_CHANNEL_ID, thumb_path, caption=file_info, has_spoiler=has_spoiler[0])
         
     except Exception as e:
         logger.error(f'{e}')
