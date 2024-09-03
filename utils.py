@@ -6,11 +6,6 @@ import asyncio
 import aiohttp
 from config import *
 from pyrogram.types import User
-from mutagen.mp3 import MP3
-from mutagen.flac import FLAC
-from mutagen.mp4 import MP4
-from mutagen.id3 import ID3, APIC
-from mutagen import File as MutagenFile
 
 async def auto_delete_message(user_message, bot_message):
     try:
