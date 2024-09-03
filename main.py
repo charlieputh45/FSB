@@ -51,7 +51,7 @@ async def pyro_task(client, message):
         await message.delete()
     
     # Send an initial message to display the progress
-    progress_msg = await app.send_message("Starting download...")
+    progress_msg = await message.reply_text("Starting download...")
     
     try:
         # Check if the custom thumbnail exists
