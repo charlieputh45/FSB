@@ -77,7 +77,8 @@ async def pyro_task(client, message):
         await asyncio.sleep(3)  
         send_msg = await app.send_video(DB_CHANNEL_ID, 
                                         video=file_path, 
-                                        caption=f"<code>{message.caption}</code>", 
+                                        caption=f"<code>{message.caption}</code>",
+                                        has_spoiler=False,
                                         duration=duration, 
                                         width=480, 
                                         height=320, 
@@ -90,7 +91,7 @@ async def pyro_task(client, message):
         new_caption = await remove_unwanted(caption)
         file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{send_msg.id}</code>"
         await asyncio.sleep(3)
-        await app.send_photo(CAPTION_CHANNEL_ID, thumb_path, caption=file_info)
+        await app.send_photo(CAPTION_CHANNEL_ID, thumb_path, caption=file_info, has_spoiler=False)
         
     except Exception as e:
         logger.error(f'{e}')
