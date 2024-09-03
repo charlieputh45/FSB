@@ -50,15 +50,15 @@ async def pyro_task(client, message):
         thumb_path = await app.download_media(message, file_name=f'photo{message.id}.jpg')
         await message.delete()
     
-    # Send an initial message to display the progress
-    progress_msg = await message.reply_text("Starting download...")
-    
     try:
         # Check if the custom thumbnail exists
         if not os.path.exists(thumb_path):
             await message.reply_text("Please set a custom thumbnail first.")
             return
             
+        # Send an initial message to display the progress
+        progress_msg = await message.reply_text("Starting download...") 
+        
         # Download the media and update the progress
         file_path = await app.download_media(message, file_name=f"{caption}", 
                                              progress=progress, progress_args=(progress_msg, last_edit_time, last_data))
