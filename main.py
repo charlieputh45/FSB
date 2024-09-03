@@ -1,6 +1,7 @@
 import os
 import time
 from pyrogram import Client, filters, enums
+from pyrogram.errors import FloodWait
 from config import *
 from utils import *
 
@@ -85,6 +86,8 @@ async def pyro_task(client, message):
         
     except Exception as e:
         logger.error(f'{e}')
+    except FloodWait as f:
+        await asyncio.sleep(f.value)
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
