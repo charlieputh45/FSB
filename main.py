@@ -5,7 +5,6 @@ from pyrogram.errors import FloodWait
 from config import *
 from utils import *
 
-
 app = Client(
     "my_bot",
     api_id=API_ID,
