@@ -4,6 +4,7 @@ from pyromod import listen
 from pyrogram import Client, filters, enums
 from config import *
 from utils import *
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
 app = Client(
@@ -55,11 +56,28 @@ async def pyro_task(client, message):
     await asyncio.sleep(3)
     thumb_path = await app.download_media(photo_msg, file_name=f'photo_{message.id}.jpg')
     await photo_msg.delete()
+
+    # Initialize has_spoiler toggle
+    has_spoiler = [False]  # Use a list to allow passing by reference
     
-    # Send an initial message to display the progress
+    # Send an initial message with the toggle button
     await asyncio.sleep(3)
-    progress_msg = await rply.edit_text("Starting download...")
+    progress_msg = await rply.edit_text("Starting download...",
+        reply_markup=types.InlineKeyboardMarkup(
+            [[types.InlineKeyboardButton(f"Toggle Spoiler: {has_spoiler[0]}", callback_data="toggle_spoiler")]]
+        )
+    )
     
+    @app.on_callback_query(filters.regex("toggle_spoiler"))
+    async def toggle_spoiler(client, callback_query):
+        has_spoiler[0] = not has_spoiler[0]
+        await callback_query.message.edit_text(
+            "Starting download...",
+            reply_markup=types.InlineKeyboardMarkup(
+                [[types.InlineKeyboardButton(f"Toggle Spoiler: {has_spoiler[0]}", callback_data="toggle_spoiler")]]
+            )
+        )
+        
     try:
         await asyncio.sleep(3)
         # Download the media and update the progress
