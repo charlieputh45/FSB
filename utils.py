@@ -5,7 +5,6 @@ import subprocess
 import asyncio
 import aiohttp
 from config import *
-from PIL import Image
 from pyrogram.types import User
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
@@ -97,6 +96,7 @@ async def download_initial_part(client, media, file_path, chunk_size):
                 break
 '''
 
+'''
 async def get_duration(file_path: str) -> str:
     try:
         # Use ffprobe to get video duration
@@ -131,23 +131,8 @@ async def get_duration(file_path: str) -> str:
     except Exception as e:
         print(f"Error generating thumbnail: {e}")
         return None        
-        
-async def get_audio_thumbnail(audio_path):
-    audio = MutagenFile(audio_path)
-    if isinstance(audio, MP3):
-        if audio.tags and isinstance(audio.tags, ID3):
-            for tag in audio.tags.values():
-                if isinstance(tag, APIC):
-                    return io.BytesIO(tag.data)
-    elif isinstance(audio, FLAC):
-        if audio.pictures:
-            return io.BytesIO(audio.pictures[0].data)
-    elif isinstance(audio, MP4):
-        if audio.tags and 'covr' in audio.tags:
-            cover = audio.tags['covr'][0]
-            return io.BytesIO(cover)
-        
-    return None
+    
+'''
 
 '''
 def generate_thumbnail(file_path: str) -> str:
