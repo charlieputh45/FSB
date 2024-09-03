@@ -45,6 +45,7 @@ async def pyro_task(client, message):
     last_edit_time = [start_time]  # Store as list to pass by reference
     last_data = [0]  # Track the last amount of data transferred
     caption = message.caption
+    thumb_path = None 
     
     if message.photo:
         thumb_path = await app.download_media(message, file_name=f'photo{message.id}.jpg')
@@ -52,7 +53,7 @@ async def pyro_task(client, message):
     
     try:
         # Check if the custom thumbnail exists
-        if not os.path.exists(thumb_path):
+        if thumb_path is None or not os.path.exists(thumb_path):
             await message.reply_text("Please set a custom thumbnail first.")
             return
             
@@ -88,9 +89,9 @@ async def pyro_task(client, message):
     except FloodWait as f:
         await asyncio.sleep(f.value)
     finally:
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
-        if os.path.exists(thumb_path):
+        if thumb_path and os.path.exists(thumb_path):
             os.remove(thumb_path)
 
 app.run()
