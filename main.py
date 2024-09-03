@@ -95,9 +95,9 @@ async def pyro_task(client, message):
     except Exception as e:
         logger.error(f'{e}')
     finally:
-        if not os.path.exists(file_path):
+        if os.path.exists(file_path):
             os.remove(file_path)
-        if not os.path.exists(thumb_path):
+        if os.path.exists(thumb_path):
             os.remove(thumb_path)
 
 app.run()
