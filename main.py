@@ -1,11 +1,11 @@
 import os
 import time
+import asyncio
 from pyromod import listen
-from pyrogram import Client, filters, enums
+from pyrogram import Client, filters, enums, types
 from config import *
 from utils import *
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
 
 app = Client(
     "my_bot",
@@ -17,7 +17,7 @@ app = Client(
     in_memory=True
 )
 
-# Variable to store the has_spoiler setting
+# Variable to store the has_spoiler setting (initially set to False)
 has_spoiler = [False]  # Using a list to allow passing by reference
 
 async def progress(current, total, message, last_edit_time, last_data):
@@ -51,8 +51,8 @@ async def setting_handler(client, message):
         "Select the spoiler setting:",
         reply_markup=types.InlineKeyboardMarkup(
             [
-                [types.InlineKeyboardButton("✅ True", callback_data="set_spoiler_true")],
-                [types.InlineKeyboardButton("❌ False", callback_data="set_spoiler_false")]
+                [types.InlineKeyboardButton("True", callback_data="set_spoiler_true")],
+                [types.InlineKeyboardButton("False", callback_data="set_spoiler_false")]
             ]
         )
     )
@@ -82,9 +82,6 @@ async def pyro_task(client, message):
     await asyncio.sleep(3)
     thumb_path = await app.download_media(photo_msg, file_name=f'photo_{message.id}.jpg')
     await photo_msg.delete()
-
-    # Initialize has_spoiler toggle
-    has_spoiler = [False]  # Use a list to allow passing by reference
     
     # Send an initial message to display the progress
     await asyncio.sleep(3)
@@ -108,7 +105,7 @@ async def pyro_task(client, message):
         send_msg = await app.send_video(DB_CHANNEL_ID, 
                                         video=file_path, 
                                         caption=f"<code>{message.caption}</code>",
-                                        has_spoiler=has_spoiler[0],
+                                        has_spoiler=has_spoiler[0],  # Use the stored spoiler setting
                                         duration=duration, 
                                         width=480, 
                                         height=320, 
