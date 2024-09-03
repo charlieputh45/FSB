@@ -46,10 +46,12 @@ async def pyro_task(client, message):
     last_data = [0]  # Track the last amount of data transferred
     caption = message.caption
     thumb_path = None 
+    file_path = None
     
     if message.photo:
         thumb_path = await app.download_media(message, file_name=f'photo{message.id}.jpg')
         await message.delete()
+        return
     
     try:
         # Check if the custom thumbnail exists
