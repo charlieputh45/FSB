@@ -20,7 +20,7 @@ app = Client(
 # Variable to store the has_spoiler setting (initially set to False)
 has_spoiler = [False]  # Using a list to allow passing by reference
 
-async def progress(current, total, message, last_edit_time, last_data):
+async def progress(current, total, message, last_edit_time, last_data, status):
     percentage = current * 100 / total
     bar_length = 20  # Length of the progress bar
     dots = int(bar_length * (current / total))
@@ -33,6 +33,7 @@ async def progress(current, total, message, last_edit_time, last_data):
     # Only edit the message if at least 3 seconds have passed since the last edit
     if elapsed_time >= 3:
         progress_message = (
+            f"Status: {status}\n"
             f"[{bar}] {percentage:.1f}%\n"
             f"Speed: {speed:.2f} MB/s"
         )
@@ -91,7 +92,7 @@ async def pyro_task(client, message):
         await asyncio.sleep(3)
         # Download the media and update the progress
         file_path = await app.download_media(message, file_name=f"{caption}", 
-                                             progress=progress, progress_args=(progress_msg, last_edit_time, last_data))
+                                             progress=progress, progress_args=(progress_msg, last_edit_time, last_data, "Downloading"))
         
         duration = await get_duration(file_path)
         
@@ -111,7 +112,7 @@ async def pyro_task(client, message):
                                         height=320, 
                                         thumb=thumb_path, 
                                         progress=progress, 
-                                        progress_args=(progress_msg, last_edit_time, last_data))
+                                        progress_args=(progress_msg, last_edit_time, last_data, "Uploading"))
         await asyncio.sleep(3)
         await progress_msg.edit_text("Uploaded ✅")
 
