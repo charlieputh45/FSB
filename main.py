@@ -10,7 +10,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 DOWNLOAD_PATH = "downloads/"
 loop = get_event_loop()
-THUMBNAIL_COUNT = 6
+THUMBNAIL_COUNT = 9
 GRID_COLUMNS = 2  # Number of columns in the grid
 
 os.makedirs(DOWNLOAD_PATH, exist_ok=True)
@@ -70,7 +70,7 @@ async def forward_message_to_new_channel(client, message):
                 file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
                 cpy_msg = await message.copy(DB_CHANNEL_ID)
                 await message.delete()
-                file_link = f'https://telegram.me/@thetgflixxxbot?start={cpy_msg.id}'
+                file_link = f'https://telegram.me/thetgflixxxbot?start={cpy_msg.id}'
                 button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
                 
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
@@ -83,9 +83,9 @@ async def forward_message_to_new_channel(client, message):
     except Exception as e:
         logger.error(f'{e}') 
     finally:
-        if os.path.exist(file_path):
+        if os.path.exists(file_path):
             os.remove(file_path)
-        if os.path.exist(thumbnail_path):
+        if os.path.exists(thumbnail_path):
             os.remove(thumbnail_path)
         
         
@@ -139,7 +139,7 @@ async def send_msg(client, message):
                             print("Failed to generate thumbnail")  
 
                         file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
-                        file_link = f'https://telegram.me/@thetgflixxxbot?start={file_message.id}'
+                        file_link = f'https://telegram.me/thetgflixxxbot?start={file_message.id}'
                         button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
 
                         await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
@@ -157,9 +157,9 @@ async def send_msg(client, message):
     except Exception as e:
         logger.error(f'{e}')
     finally:
-        if os.path.exist(file_path):
+        if os.path.exists(file_path):
             os.remove(file_path)
-        if os.path.exist(thumbnail_path):
+        if os.path.exists(thumbnail_path):
             os.remove(thumbnail_path)
 
 @app.on_message(filters.command("copy") & filters.user(OWNER_USERNAME))
