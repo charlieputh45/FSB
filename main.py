@@ -90,11 +90,11 @@ async def get_command(client, message):
 @app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
 async def send_msg(client, message):
     try:
+        await message.delete()
         async def get_user_input(prompt):
             rply = await message.reply_text(prompt)
             link_msg = await app.listen(message.chat.id)
             await link_msg.delete()
-            await asyncio.sleep(3)
             await rply.delete()
             return link_msg.text
             
