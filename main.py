@@ -1,3 +1,4 @@
+import os 
 from utils import *
 from config import *
 from pyrogram import idle
@@ -10,7 +11,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 DOWNLOAD_PATH = "downloads/"
 loop = get_event_loop()
 THUMBNAIL_COUNT = 6
-GRID_COLUMNS = 3  # Number of columns in the grid
+GRID_COLUMNS = 2  # Number of columns in the grid
 
 os.makedirs(DOWNLOAD_PATH, exist_ok=True)
 
@@ -81,6 +82,12 @@ async def forward_message_to_new_channel(client, message):
 
     except Exception as e:
         logger.error(f'{e}') 
+    finally:
+        if os.path.exist(file_path):
+            os.remove(file_path)
+        if os.path.exist(thumbnail_path):
+            os.remove(thumbnail_path)
+        
         
 @app.on_message(filters.command("start"))
 async def get_command(client, message):
@@ -149,6 +156,11 @@ async def send_msg(client, message):
 
     except Exception as e:
         logger.error(f'{e}')
+    finally:
+        if os.path.exist(file_path):
+            os.remove(file_path)
+        if os.path.exist(thumbnail_path):
+            os.remove(thumbnail_path)
 
 @app.on_message(filters.command("copy") & filters.user(OWNER_USERNAME))
 async def copy_msg(client, message):    
