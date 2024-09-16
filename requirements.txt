@@ -4,4 +4,4 @@ pyromod==1.5
 TgCrypto
 pymongo
 aiohttp
-
+requests
