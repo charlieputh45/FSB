@@ -141,7 +141,7 @@ async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_
         for thumb in thumbnails:
             os.remove(thumb)
 
-        return combined_thumbnail_path
+        return combined_thumbnail_path, duration
     except Exception as e:
         print(f"Error generating combined thumbnail: {e}")
         return None
