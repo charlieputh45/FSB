@@ -89,22 +89,16 @@ async def get_command(client, message):
 @app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
 async def send_msg(client, message):
     try:
-        rply1 = await message.reply_text("send post start link")
-        s_msg = await app.listen(message.chat.id)
-        start_msg = s_msg.text 
-        await rply1.delete()
-        
-
-        rply2 = await message.reply_text("send post end link")
-        e_msg = await app.listen(message.chat.id)
-        end_msg = e_msg.text
-        await rply2.delete()
-
-        start_msg_id = int(await extract_tg_link(start_msg))
-        await s_msg.delete()
-        await asyncio.sleep(3)
-        end_msg_id = int(await extract_tg_link(end_msg))
-        await e_msg.delete()
+        async def get_user_input(prompt):
+            rply = await message.reply_text(prompt)
+            link_msg = await app.listen(message.chat.id)
+            await link_msg.delete()
+            await asyncio.sleep(3)
+            await rply.delete()
+            return link_msg.text
+            
+        start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
+        end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
         
         batch_size = 199
         for start in range(start_msg_id, end_msg_id + 1, batch_size):
