@@ -5,3 +5,5 @@ TgCrypto
 pymongo
 aiohttp
 requests
+gunicorn 
+flask
