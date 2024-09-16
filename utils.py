@@ -1,11 +1,9 @@
-import io
 import re
 import random
 import subprocess
 import asyncio
-import aiohttp
+from PIL import Image
 from config import *
-from pyrogram.types import User
 
 async def auto_delete_message(user_message, bot_message):
     try:
@@ -92,40 +90,61 @@ async def download_initial_part(client, media, file_path, chunk_size):
 '''
 
 
-async def get_duration(file_path: str) -> str:
+async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
     try:
+        # List to store individual thumbnails
+        thumbnails = []
+
         # Use ffprobe to get video duration
         duration_cmd = [
             'ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
             '-of', 'default=noprint_wrappers=1:nokey=1', file_path
         ]
         duration = float(subprocess.check_output(duration_cmd).strip())
-        
-        #random_interval = random.uniform(0, duration)
 
-        # Adjust the duration to account for a 2% reduction
-        #adjusted_duration = duration - (duration * 2 / 100)
+        # Generate random intervals
+        intervals = [random.uniform(0, duration) for _ in range(num_thumbnails)]
 
-        # Ensure at least some duration to work with
-        #if adjusted_duration <= 0:
-            #adjusted_duration = 3
+        # Create thumbnails at specified intervals
+        for i, interval in enumerate(intervals):
+            thumbnail_path = f"{file_path}_thumb_{i}.jpg"
+            thumbnail_cmd = [
+                'ffmpeg', '-ss', str(interval), '-i', file_path, 
+                '-frames:v', '1', thumbnail_path, '-y'
+            ]
+            subprocess.run(thumbnail_cmd, capture_output=True, check=True)
+            thumbnails.append(thumbnail_path)
 
-        # Choose the midpoint of the adjusted duration for the thumbnail
-        #midpoint = adjusted_duration / 2
+        # Open all thumbnails and combine them into a grid
+        images = [Image.open(thumb) for thumb in thumbnails]
+        widths, heights = zip(*(img.size for img in images))
 
+        max_width = max(widths)
+        max_height = max(heights)
 
-        # Create a thumbnail at the random interval
-        #thumbnail_path = f"{file_path}_thumb.jpg"
-        #thumbnail_cmd = [
-           # 'ffmpeg', '-ss', str(random_interval), '-i', file_path, 
-           # '-frames:v', '1', thumbnail_path, '-y'
-        #]
-        #subprocess.run(thumbnail_cmd, capture_output=True, check=True)
+        # Calculate grid dimensions
+        grid_rows = (len(images) + grid_columns - 1) // grid_columns
+        grid_width = grid_columns * max_width
+        grid_height = grid_rows * max_height
 
-        return duration
+        combined_image = Image.new('RGB', (grid_width, grid_height))
+
+        for index, img in enumerate(images):
+            x = (index % grid_columns) * max_width
+            y = (index // grid_columns) * max_height
+            combined_image.paste(img, (x, y))
+
+        combined_thumbnail_path = f"{file_path}_combined.jpg"
+        combined_image.save(combined_thumbnail_path)
+
+        # Clean up individual thumbnails
+        for thumb in thumbnails:
+            os.remove(thumb)
+
+        return combined_thumbnail_path
     except Exception as e:
-        print(f"Error generating thumbnail: {e}")
-        return None        
+        print(f"Error generating combined thumbnail: {e}")
+        return None
     
 
 '''
@@ -146,8 +165,3 @@ def generate_thumbnail(file_path: str) -> str:
         print(f"Error generating thumbnail: {e}")
         return None
 '''
-
-async def get_user_link(user: User) -> str:
-    user_id = user.id
-    first_name = user.first_name
-    return f'<a href=tg://user?id={user_id}>{first_name}</a>'

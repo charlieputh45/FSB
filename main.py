@@ -1,117 +1,180 @@
-import os
-import time
-import asyncio
-from pyromod import listen
-from pyrogram import Client, filters, enums, types
-from config import *
 from utils import *
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from config import *
+from pyrogram import idle
+from pyromod import listen
+from pyrogram.errors import FloodWait
+from pyrogram import Client, filters, enums
+from asyncio import get_event_loop
+
+DOWNLOAD_PATH = "downloads/"
+loop = get_event_loop()
+THUMBNAIL_COUNT = 9
+GRID_COLUMNS = 3  # Number of columns in the grid
+
+os.makedirs(DOWNLOAD_PATH, exist_ok=True)
+
+user_data = {}
+TOKEN_TIMEOUT = 7200
 
 app = Client(
     "my_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN,
-    workers=1000,
-    parse_mode=enums.ParseMode.HTML,
-    in_memory=True
-)
+      api_id=API_ID,
+      api_hash=API_HASH, 
+      bot_token=BOT_TOKEN, 
+      workers=1000, 
+      parse_mode=enums.ParseMode.HTML,
+      in_memory=True)
 
-# Dictionary to store the has_spoiler value per task/message ID
-spoiler_settings = {}
+user = Client(
+                "userbot",
+                api_id=int(API_ID),
+                api_hash=API_HASH,
+                session_string=STRING_SESSION,
+                no_updates = True
+            )
 
-async def progress(current, total, message, last_edit_time, last_data, status):
-    percentage = current * 100 / total
-    bar_length = 20  # Length of the progress bar
-    dots = int(bar_length * (current / total))
-    bar = '●' * dots + '○' * (bar_length - dots)
-    
-    elapsed_time = time.time() - last_edit_time[0]
-    speed = ((current - last_data[0]) / 1024 / 1024) / elapsed_time  # MB per second
+async def main():
+    async with app, user:
+        await idle()
 
-    if elapsed_time >= 3:
-        progress_message = (
-            f"Status: {status}\n"
-            f"[{bar}] {percentage:.1f}%\n"
-            f"Speed: {speed:.2f} MB/s"
-        )
-        await message.edit_text(progress_message)
-        
-        last_edit_time[0] = time.time()
-        last_data[0] = current
+with app:
+    bot_username = (app.get_me()).username
 
-@app.on_message(filters.private & (filters.document | filters.video | filters.photo))
-async def pyro_task(client, message):
-    start_time = time.time()
-    last_edit_time = [start_time]  # Store as list to pass by reference
-    last_data = [0]  # Track the last amount of data transferred
-    caption = message.caption
-
-    # Initialize the has_spoiler setting for this task/message
-    spoiler_settings[message.id] = False
-
-    rply = await message.reply_text(
-        f"Please send a photo\nSelect the spoiler setting:",
-        reply_markup=types.InlineKeyboardMarkup(
-            [
-                [types.InlineKeyboardButton("True", callback_data=f"set_spoiler_true_{message.id}")],
-                [types.InlineKeyboardButton("False", callback_data=f"set_spoiler_false_{message.id}")]
-            ]
-        )
-    )
-    
-    photo_msg = await app.listen(message.chat.id, filters=filters.photo)
-    
-    thumb_path = await app.download_media(photo_msg, file_name=f'photo_{message.id}.jpg')
-    await photo_msg.delete()
-    
-    progress_msg = await rply.edit_text("Starting download...")
-    
+@app.on_message(filters.chat(DB_CHANNEL_ID) & (filters.document | filters.video | filters.audio))
+async def forward_message_to_new_channel(client, message):
     try:
-        file_path = await app.download_media(message, file_name=f"{caption}", 
-                                             progress=progress, progress_args=(progress_msg, last_edit_time, last_data, "Downloading"))
-        
-        duration = await get_duration(file_path)
-        
-        if not os.path.exists(thumb_path):
-            await message.reply_text("Please set a custom thumbnail first.")
-            return
+        media = message.document or message.video or message.audio
+        file_id = message.id
 
-        send_msg = await app.send_video(DB_CHANNEL_ID, 
-                                        video=file_path, 
-                                        caption=f"<code>{message.caption}</code>",
-                                        has_spoiler=spoiler_settings[message.id],  # Use the stored spoiler setting
-                                        duration=duration, 
-                                        width=480, 
-                                        height=320, 
-                                        thumb=thumb_path, 
-                                        progress=progress, 
-                                        progress_args=(progress_msg, last_edit_time, last_data, "Uploading"))
-        
-        await progress_msg.edit_text("Uploaded ✅")
+        if media:
+            caption = message.caption if message.caption else None
 
-        new_caption = await remove_unwanted(caption)
-        file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{send_msg.id}</code>"
-        await app.send_photo(CAPTION_CHANNEL_ID, thumb_path, caption=file_info, has_spoiler=spoiler_settings[message.id])
-        
+            if caption:
+                new_caption = await remove_unwanted(caption)
+
+                # Generate file path
+                logger.info(f"Downloading initial part of {file_id}...")
+
+                file_path = await app.download_media(media.file_id)
+                print("Generating Thumbnail")
+                # Generate a thumbnail
+                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+
+                if thumbnail_path:
+                    print(f"Thumbnail generated: {thumbnail_path}")
+                else:
+                    print("Failed to generate thumbnail")   
+
+                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
+
+                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler =True)
+
+                os.remove(thumbnail_path)
+                os.remove(file_path)
+
+                await asyncio.sleep(3)
+
+    except Exception as e:
+        logger.error(f'{e}')    
+
+
+@app.on_message(filters.command("start"))
+async def get_command(client, message):
+    reply = await message.reply_text(f"<b>💐Welcome this is TG⚡️Flix Bot")
+    await auto_delete_message(message, reply)
+
+# Send Multiple Command
+@app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
+async def send_msg(client, message):
+    try:
+        await message.reply_text("send post start link")
+        start_msg = (await app.listen(message.chat.id)).text
+
+        await message.reply_text("send post end link")
+        end_msg = (await app.listen(message.chat.id)).text
+
+        start_msg_id = int(await extract_tg_link(start_msg))
+        end_msg_id = int(await extract_tg_link(end_msg))
+
+        batch_size = 199
+        for start in range(start_msg_id, end_msg_id + 1, batch_size):
+            end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
+            file_messages = await app.get_messages(DB_CHANNEL_ID, range(start, end + 1))
+
+            for file_message in file_messages:
+
+                media = file_message.document or file_message.video or file_message.audio
+
+                if media:
+                    file_id = file_message.id
+                    caption = file_message.caption if file_message.caption else None
+
+                    if caption:
+                        new_caption = await remove_unwanted(caption)
+
+                        # Generate file path
+                        logger.info(f"Downloading initial part of {file_id}...")
+
+                        file_path = await app.download_media(media.file_id)
+                        print("download complete")
+                        # Generate a thumbnail
+                        thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+
+                        if thumbnail_path:
+                            print(f"Thumbnail generated: {thumbnail_path}")
+                        else:
+                            print("Failed to generate thumbnail")  
+
+                        file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
+
+                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, has_spoiler=True)
+
+                        os.remove(thumbnail_path)
+                        os.remove(file_path)
+
+                        await asyncio.sleep(3)
+
+        await message.reply_text("Messages send successfully!")
+
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
+
     except Exception as e:
         logger.error(f'{e}')
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(thumb_path):
-            os.remove(thumb_path)
-        # Clean up the spoiler setting for this message ID
-        spoiler_settings.pop(message.id, None)
 
-@app.on_callback_query(filters.regex(r"set_spoiler_(true|false)_\d+"))
-async def spoiler_callback(client, callback_query):
-    data_parts = callback_query.data.split('_')
-    spoiler_value = data_parts[2] == "true"
-    message_id = int(data_parts[3])
+# Delete Commmand
+@app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
+async def get_command(client, message):
+    try:
+        await message.reply_text("Enter channel_id")
+        channel_id = int((await app.listen(message.chat.id)).text)
+
+        await message.reply_text("Enter count")
+        limit = int((await app.listen(message.chat.id)).text)
+
+        await app.send_message(channel_id, "Hi")
+
+        try:
+            async for message in user.get_chat_history(channel_id, limit):
+                await message.delete()
+        except Exception as e:
+            logger.error(f"Error deleting messages: {e}")
+        await user.send_message(channel_id, "done")
+    except Exception as e:
+        logger.error(f"Error : {e}")
+
+# Get Log Command
+@app.on_message(filters.command("log") & filters.user(OWNER_USERNAME))
+async def log_command(client, message):
+    user_id = message.from_user.id
+
+    # Send the log file
+    try:
+        reply = await app.send_document(user_id, document=LOG_FILE_NAME, caption="Bot Log File")
+        await auto_delete_message(message, reply)
+    except Exception as e:
+        await app.send_message(user_id, f"Failed to send log file. Error: {str(e)}")
     
-    # Update the dictionary with the new has_spoiler value for this task
-    spoiler_settings[message_id] = spoiler_value
-    await callback_query.answer(f"Set to {spoiler_value}")
-
-app.run()
+      
+if __name__ == "__main__":
+    loop.run_until_complete(main())
