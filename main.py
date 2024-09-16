@@ -1,17 +1,25 @@
+import uuid
 from utils import *
 from config import *
+from shorterner import *
+from time import time as tm
 from pyrogram import idle
 from pyromod import listen
 from pyrogram.errors import FloodWait
 from pyrogram import Client, filters, enums
 from asyncio import get_event_loop
+from pymongo import MongoClient
+from pyrogram.types import User
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-DOWNLOAD_PATH = "downloads/"
+
+
 loop = get_event_loop()
-THUMBNAIL_COUNT = 6
-GRID_COLUMNS = 3  # Number of columns in the grid
 
-os.makedirs(DOWNLOAD_PATH, exist_ok=True)
+MONGO_COLLECTION = "users"
+mongo_client = MongoClient(MONGO_URL)
+mongo_db = mongo_client[MONGO_DB_NAME]
+mongo_collection = mongo_db[MONGO_COLLECTION]
 
 user_data = {}
 TOKEN_TIMEOUT = 7200
@@ -40,117 +48,108 @@ async def main():
 with app:
     bot_username = (app.get_me()).username
 
-@app.on_message(filters.chat(DB_CHANNEL_ID) & (filters.document | filters.video | filters.audio))
-async def forward_message_to_new_channel(client, message):
-    try:
-        media = message.document or message.video or message.audio
-        file_id = message.id
-
-        if media:
-            caption = message.caption if message.caption else None
-
-            if caption:
-                new_caption = await remove_unwanted(caption)
-
-                # Generate file path
-                logger.info(f"Downloading initial part of {file_id}...")
-
-                file_path = await app.download_media(media.file_id)
-                print("Generating Thumbnail")
-                # Generate a thumbnail
-                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
-
-                if thumbnail_path:
-                    print(f"Thumbnail generated: {thumbnail_path}")
-                else:
-                    print("Failed to generate thumbnail")   
-
-                file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
-                
-                file_link = f'https://telegram.me/@thetgflixxxbot?start={cpy_msg.id}'
-                button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
-
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
-
-                os.remove(thumbnail_path)
-                os.remove(file_path)
-
-                await asyncio.sleep(3)
-
-    except Exception as e:
-        logger.error(f'{e}') 
         
-@app.on_message(filters.command("start"))
+@app.on_message(filters.private & filters.command("start"))
 async def get_command(client, message):
-    reply = await message.reply_text(f"<b>💐Welcome this is TG⚡️Flix Bot")
-    await auto_delete_message(message, reply)
+    user_id = message.from_user.id
+    user_link = await get_user_link(message.from_user)
 
-# Send Multiple Command
-@app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
-async def send_msg(client, message):
+    if len(message.command) > 1 and message.command[1] == "token":
+        try:
+            file_id = 158
+            get_msg = await app.get_messages(DB_CHANNEL_ID, int(file_id))
+            cpy_msg = await get_msg.copy(chat_id=message.chat.id)
+            await auto_delete_message(message, cpy_msg)
+            
+        except Exception as e:
+            logger.error(f"{e}")
+        return
+
+    if len(message.command) > 1 and len(message.command[1]) == 36:
+        input_token = message.command[1] if len(message.command) > 1 else None
+        token_msg = await verify_token(user_id, input_token)
+        reply = await message.reply_text(token_msg)
+        await app.send_message(LOG_CHANNEL_ID, f"User🕵️‍♂️{user_link} with 🆔 {user_id} @{bot_username} {token_msg}", parse_mode=enums.ParseMode.HTML)
+        await auto_delete_message(message, reply)
+        return
+
+    file_id = message.command[1] if len(message.command) > 1 else None
+
+    if file_id:
+        if not await check_access(message, user_id):
+            return
+        try:
+            file_message = await app.get_messages(DB_CHANNEL_ID, int(file_id))
+            media = file_message.video or file_message.audio or file_message.document
+            if media:
+                caption = file_message.caption if file_message.caption else None
+                if caption:
+                    new_caption = await remove_extension(caption.html)
+                    copy_message = await file_message.copy(chat_id=message.chat.id, caption=f"<code>{new_caption}</code>", parse_mode=enums.ParseMode.HTML)
+                    user_data[user_id]['file_count'] = user_data[user_id].get('file_count', 0) + 1
+                else:
+                    copy_message = await file_message.copy(chat_id=message.chat.id)
+                    user_data[user_id]['file_count'] = user_data[user_id].get('file_count', 0) + 1
+                await auto_delete_message(message, copy_message)
+                await asyncio.sleep(3)
+            else:
+                reply = await message.reply_text("File not found or inaccessible.")
+                await auto_delete_message(message, reply)
+
+        except ValueError:
+            reply = await message.reply_text("Invalid File ID") 
+            await auto_delete_message(message, reply)  
+
+        except FloodWait as f:
+            await asyncio.sleep(f.value)
+            if caption:
+                copy_message = await file_message.copy(chat_id=message.chat.id, caption=f"<code>{new_caption}</code>", parse_mode=enums.ParseMode.HTML)
+                user_data[user_id]['file_count'] = user_data[user_id].get('file_count', 0) + 1
+            else:
+                copy_message = await file_message.copy(chat_id=message.chat.id)
+                user_data[user_id]['file_count'] = user_data[user_id].get('file_count', 0) + 1
+
+            await auto_delete_message(message, copy_message)
+            await asyncio.sleep(3)
+    else:
+        mongo_collection.update_one(
+                {'user_id': user_id},
+                {'$set': {'user_id': user_id}}, 
+                upsert=True
+            )
+        reply = await message.reply_text(f"<b>💐Welcome this is TG⚡️Flix Bot")
+        await auto_delete_message(message, reply)
+
+
+@app.on_message(filters.command("copy") & filters.user(OWNER_USERNAME))
+async def copy_msg(client, message):    
     try:
-        rply1 = await message.reply_text("send post start link")
-        s_msg = await app.listen(message.chat.id)
-        start_msg = s_msg.text 
-        await rply1.delete()
+        async def get_user_input(prompt):
+            rply = await message.reply_text(prompt)
+            await rply.delete()
+            link_msg = await app.listen(message.chat.id)
+            await link_msg.delete()
+            return link_msg.text
         
+        # Collect input from the user
+        start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
+        end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
+        db_channel_id = int(await extract_channel_id(await get_user_input("Send db_channel link")))
+        destination_id = int(await extract_channel_id(await get_user_input("Send destination channel link")))
 
-        rply2 = await message.reply_text("send post end link")
-        e_msg = await app.listen(message.chat.id)
-        end_msg = e_msg.text
-        await rply2.delete()
+        # Get and copy messages
+        file_messages = await app.get_messages(db_channel_id, range(start_msg_id, end_msg_id + 1))
 
-        start_msg_id = int(await extract_tg_link(start_msg))
-        await s_msg.delete()
-        await asyncio.sleep(3)
-        end_msg_id = int(await extract_tg_link(end_msg))
-        await e_msg.delete()
+        for file_message in file_messages:
+            if file_message and (file_message.document or file_message.video or file_message.audio or file_message.photo):
+                caption = file_message.caption.html if file_message.caption else None
+                await file_message.copy(destination_id, caption=caption)
+                await asyncio.sleep(3)
+                
+        await message.reply_text("Messages copied successfully!")
         
-        batch_size = 199
-        for start in range(start_msg_id, end_msg_id + 1, batch_size):
-            end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
-            file_messages = await app.get_messages(DB_CHANNEL_ID, range(start, end + 1))
-
-            for file_message in file_messages:
-
-                media = file_message.document or file_message.video or file_message.audio
-
-                if media:
-                    file_id = file_message.id
-                    caption = file_message.caption if file_message.caption else None
-
-                    if caption:
-                        new_caption = await remove_unwanted(caption)
-
-                        # Generate file path
-                        logger.info(f"Downloading initial part of {file_id}...")
-
-                        file_path = await app.download_media(media.file_id)
-                        print("download complete")
-                        # Generate a thumbnail
-                        thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
-
-                        if thumbnail_path:
-                            print(f"Thumbnail generated: {thumbnail_path}")
-                        else:
-                            print("Failed to generate thumbnail")  
-
-                        file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
-                        file_link = f'https://telegram.me/@thetgflixxxbot?start={cpy_msg.id}'
-                        button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
-
-                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
-
-                        os.remove(thumbnail_path)
-                        os.remove(file_path)
-
-                        await asyncio.sleep(3)
-
-        await message.reply_text("Messages send successfully!")
-
     except FloodWait as e:
         await asyncio.sleep(e.value)
-
     except Exception as e:
         logger.error(f'{e}')
 
@@ -187,6 +186,83 @@ async def log_command(client, message):
     except Exception as e:
         await app.send_message(user_id, f"Failed to send log file. Error: {str(e)}")
     
+async def verify_token(user_id, input_token):
+    current_time = tm()
+
+    # Check if the user_id exists in user_data
+    if user_id not in user_data:
+        return 'Token Mismatched ❌' 
+    
+    stored_token = user_data[user_id]['token']
+    if input_token == stored_token:
+        token = str(uuid.uuid4())
+        user_data[user_id] = {"token": token, "time": current_time, "status": "verified", "file_count": 0}
+        return f'Token Verified ✅'
+    else:
+        return f'Token Mismatched ❌'
+    
+async def check_access(message, user_id):
+
+    if user_id in user_data:
+        time = user_data[user_id]['time']
+        status = user_data[user_id]['status']
+        file_count = user_data[user_id].get('file_count', 0)
+        expiry = time + TOKEN_TIMEOUT
+        current_time = tm()
+        if current_time < expiry and status == "verified":
+            if file_count < 10:
+                return True
+            else:
+                reply = await message.reply_text(f"You have reached the limit. Please wait until the token expires")
+                await auto_delete_message(message, reply)
+        else:
+            button = await update_token(user_id)
+            send_message = await app.send_message(user_id,f'<b>You need to collect your token first 🎟\n(Valid: {get_readable_time(TOKEN_TIMEOUT)})</b>', reply_markup=button)
+            await auto_delete_message(message, send_message)
+    else:
+        button = await genrate_token(user_id)
+        send_message = await app.send_message(user_id,f'<b>You need to collect your token first 🎟\n(Valid: {get_readable_time(TOKEN_TIMEOUT)})</b>', reply_markup=button)
+        await auto_delete_message(message, send_message)
+
+async def update_token(user_id):
+    try:
+        time = user_data[user_id]['time']
+        expiry = time + TOKEN_TIMEOUT
+        if time < expiry:
+            token = user_data[user_id]['token']
+        else:
+            token = str(uuid.uuid4())
+        current_time = tm()
+        user_data[user_id] = {"token": token, "time": current_time, "status": "unverified", "file_count": 0}
+        urlshortx = await shorten_url(f'https://telegram.me/{bot_username}?start={token}')
+        token_url = f'https://telegram.me/{bot_username}?start=token'
+        button1 = InlineKeyboardButton("Collect Token", url=urlshortx)
+        button2 = InlineKeyboardButton("How to Bypass Token", url=token_url)
+        button = InlineKeyboardMarkup([[button1, button2]])
+        return button
+    except Exception as e:
+        logger.error(f"error in update_token: {e}")
+
+async def genrate_token(user_id):
+    try:
+        token = str(uuid.uuid4())
+        current_time = tm()
+        user_data[user_id] = {"token": token, "time": current_time, "status": "unverified", "file_count": 0}
+        urlshortx = await shorten_url(f'https://telegram.me/{bot_username}?start={token}')
+        token_url = f'https://telegram.me/{bot_username}?start=token'
+        button1 = InlineKeyboardButton("Collect Token", url=urlshortx)
+        button2 = InlineKeyboardButton("How to Bypass Token", url=token_url)
+        button = InlineKeyboardMarkup([[button1, button2]])
+        return button
+    except Exception as e:
+        logger.error(f"error in genrate_token: {e}")
+
+async def get_user_link(user: User) -> str:
+    user_id = user.id
+    first_name = user.first_name
+    return f'<a href=tg://user?id={user_id}>{first_name}</a>'
       
 if __name__ == "__main__":
+    logger.info("Bot is starting...")
     loop.run_until_complete(main())
+    logger.info("Bot has stopped.")

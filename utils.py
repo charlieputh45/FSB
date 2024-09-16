@@ -1,8 +1,5 @@
 import re
-import random
-import subprocess
 import asyncio
-from PIL import Image
 from config import *
 
 async def auto_delete_message(user_message, bot_message):
@@ -31,7 +28,7 @@ def get_readable_time(seconds: int) -> str:
     result += f" {seconds}s"
     return result
     
-async def remove_unwanted(caption):
+async def remove_extension(caption):
     try:
         # Remove .mkv and .mp4 extensions if present
         cleaned_caption = re.sub(r'\.mkv|\.mp4|\.webm', '', caption)
@@ -73,95 +70,10 @@ async def extract_channel_id(telegram_link):
         if match:
             channel_id = match.group(1)
             formatted_channel_id = f'-100{channel_id}'
-            return formatted_channel_id
+            return formatted_channel_id 
         else:
             return None
     except Exception as e:
         logger.error(e)
-        
-'''
-async def download_initial_part(client, media, file_path, chunk_size):
-    # Open the file for writing in binary mode
-    with open(file_path, 'wb') as f:
-        async for chunk in client.stream_media(media):
-            f.write(chunk)
-            if f.tell() >= chunk_size:
-                break
-'''
 
 
-async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
-    try:
-        # List to store individual thumbnails
-        thumbnails = []
-
-        # Use ffprobe to get video duration
-        duration_cmd = [
-            'ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
-            '-of', 'default=noprint_wrappers=1:nokey=1', file_path
-        ]
-        duration = float(subprocess.check_output(duration_cmd).strip())
-
-        # Generate random intervals
-        intervals = [random.uniform(0, duration) for _ in range(num_thumbnails)]
-
-        # Create thumbnails at specified intervals
-        for i, interval in enumerate(intervals):
-            thumbnail_path = f"{file_path}_thumb_{i}.jpg"
-            thumbnail_cmd = [
-                'ffmpeg', '-ss', str(interval), '-i', file_path, 
-                '-frames:v', '1', thumbnail_path, '-y'
-            ]
-            subprocess.run(thumbnail_cmd, capture_output=True, check=True)
-            thumbnails.append(thumbnail_path)
-
-        # Open all thumbnails and combine them into a grid
-        images = [Image.open(thumb) for thumb in thumbnails]
-        widths, heights = zip(*(img.size for img in images))
-
-        max_width = max(widths)
-        max_height = max(heights)
-
-        # Calculate grid dimensions
-        grid_rows = (len(images) + grid_columns - 1) // grid_columns
-        grid_width = grid_columns * max_width
-        grid_height = grid_rows * max_height
-
-        combined_image = Image.new('RGB', (grid_width, grid_height))
-
-        for index, img in enumerate(images):
-            x = (index % grid_columns) * max_width
-            y = (index // grid_columns) * max_height
-            combined_image.paste(img, (x, y))
-
-        combined_thumbnail_path = f"{file_path}_combined.jpg"
-        combined_image.save(combined_thumbnail_path)
-
-        # Clean up individual thumbnails
-        for thumb in thumbnails:
-            os.remove(thumb)
-
-        return combined_thumbnail_path
-    except Exception as e:
-        print(f"Error generating combined thumbnail: {e}")
-        return None
-    
-
-'''
-def generate_thumbnail(file_path: str) -> str:
-    try:
-        # Output thumbnail path
-        thumbnail_path = f"{file_path}.jpg"
-
-        # Use ffmpeg to generate a thumbnail
-        (
-            zender
-            .input(file_path, ss='00:00:01')  # Seek to 1 second
-            .output(thumbnail_path, vframes=1)
-            .run(capture_stdout=True, capture_stderr=True)
-        )
-        return thumbnail_path
-    except Exception as e:
-        print(f"Error generating thumbnail: {e}")
-        return None
-'''
