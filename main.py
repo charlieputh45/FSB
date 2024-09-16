@@ -5,6 +5,7 @@ from pyromod import listen
 from pyrogram.errors import FloodWait
 from pyrogram import Client, filters, enums
 from asyncio import get_event_loop
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 DOWNLOAD_PATH = "downloads/"
 loop = get_event_loop()
