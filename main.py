@@ -144,7 +144,7 @@ async def send_msg(client, message):
                         file_path = await app.download_media(media.file_id)
                         print("download complete")
                         # Generate a thumbnail
-                        thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+                        thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
                         if thumbnail_path:
                             print(f"Thumbnail generated: {thumbnail_path}")
