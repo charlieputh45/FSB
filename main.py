@@ -56,11 +56,13 @@ async def forward_message_to_new_channel(client, message):
 
                 # Generate file path
                 logger.info(f"Downloading initial part of {file_id}...")
-
-                file_path = await app.download_media(media.file_id)
+                
+                dwnld_msg = await message.reply_text("📥 Downloading")
+                
+                file_path = await app.download_media(message, file_name=f"{caption}")
                 print("Generating Thumbnail")
                 # Generate a thumbnail
-                thumbnail_path = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+                thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
                 if thumbnail_path:
                     print(f"Thumbnail generated: {thumbnail_path}")
@@ -68,9 +70,20 @@ async def forward_message_to_new_channel(client, message):
                     print("Failed to generate thumbnail")   
 
                 file_info = f"📸 <b>{new_caption}</b>"
-                cpy_msg = await message.copy(DB_CHANNEL_ID)
-                await message.delete()
-                file_link = f'https://telegram.me/thetgflixxxbot?start={cpy_msg.id}'
+
+                upld_msg = await dwnld_msg.edit_text("⏫ Uploading")
+                send_msg = await app.send_video(DB_CHANNEL_ID, 
+                                                video=file_path, 
+                                                caption=f"<code>{caption}</code>",
+                                                duration=duration, 
+                                                width=480, 
+                                                height=320, 
+                                                thumb=thumb_path
+                                               )
+                
+                await upld_msg.edit_text("Uploaded ✅")
+                
+                file_link = f'https://telegram.me/thetgflixxxbot?start={send_msg.id}'
                 button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
                 
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
