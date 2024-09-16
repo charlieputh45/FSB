@@ -67,7 +67,7 @@ async def forward_message_to_new_channel(client, message):
 
                 file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
                 
-                file_link = f'https://telegram.me/{bot_username}?start={cpy_msg.id}'
+                file_link = f'https://telegram.me/@thetgflixxxbot?start={cpy_msg.id}'
                 button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
 
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
@@ -136,7 +136,7 @@ async def send_msg(client, message):
                             print("Failed to generate thumbnail")  
 
                         file_info = f"🎞️ <b>{new_caption}</b>\n\n🆔 <code>{file_id}</code>"
-                        file_link = f'https://telegram.me/{bot_username}?start={cpy_msg.id}'
+                        file_link = f'https://telegram.me/@thetgflixxxbot?start={cpy_msg.id}'
                         button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
 
                         await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
