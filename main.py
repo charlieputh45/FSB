@@ -7,7 +7,6 @@ from pyromod import listen
 from pyrogram.errors import FloodWait
 from pyrogram import Client, filters, enums
 from asyncio import get_event_loop
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 DOWNLOAD_PATH = "downloads/"
 loop = get_event_loop()
@@ -43,7 +42,7 @@ async def main():
 with app:
     bot_username = (app.get_me()).username
 
-@app.on_message(filters.private & (filters.document | filters.video))
+@app.on_message(filters.private & (filters.document | filters.video) & filters.user(OWNER_USERNAME))
 async def forward_message_to_new_channel(client, message):
     try:
         media = message.document or message.video
@@ -79,7 +78,7 @@ async def forward_message_to_new_channel(client, message):
                                                 duration=duration, 
                                                 width=480, 
                                                 height=320, 
-                                                thumb=thumb_path
+                                                thumb=thumbnail_path
                                                )
                 
                 await upld_msg.edit_text("Uploaded ✅")
