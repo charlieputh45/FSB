@@ -1,6 +1,7 @@
 import os 
 from utils import *
 from config import *
+from html import escape
 from pyrogram import idle
 from pyromod import listen
 from pyrogram.errors import FloodWait
@@ -74,7 +75,7 @@ async def forward_message_to_new_channel(client, message):
                 upld_msg = await dwnld_msg.edit_text("⏫ Uploading")
                 send_msg = await app.send_video(DB_CHANNEL_ID, 
                                                 video=file_path, 
-                                                caption=f"<code>{caption}</code>",
+                                                caption=f"<code>{escape(caption)}</code>",
                                                 duration=duration, 
                                                 width=480, 
                                                 height=320, 
@@ -83,7 +84,7 @@ async def forward_message_to_new_channel(client, message):
                 
                 await upld_msg.edit_text("Uploaded ✅")
 
-                file_info = f"<b>🗂️ {new_caption}\n\n💾 {humanbytes(file_size)}   🆔 <code>{send_msg.id}</code></b>"
+                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}   🆔 <code>{send_msg.id}</code></b>"
 
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
 
@@ -151,7 +152,7 @@ async def send_msg(client, message):
                         else:
                             print("Failed to generate thumbnail")  
 
-                        file_info = f"<b>🗂️ {new_caption}\n\n💾 {humanbytes(file_size)}   🆔 <code>{file_message.id}</code></b>"
+                        file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}   🆔 <code>{file_message.id}</code></b>"
 
                         await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
 
