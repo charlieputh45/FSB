@@ -114,14 +114,12 @@ async def send_msg(client, message):
         async def get_user_input(prompt):
             rply = await message.reply_text(prompt)
             link_msg = await app.listen(message.chat.id)
+            await link_msg.delete()
             await rply.delete()
             return link_msg.text
             
-        link_msg_start = await get_user_input("Send first post link")
-        link_msg_end = await get_user_input("Send end post link")
-        
-        start_msg_id = int(await extract_tg_link(link_msg_start.text))
-        end_msg_id = int(await extract_tg_link(link_msg_end.text))
+        start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
+        end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
         
         batch_size = 199
         for start in range(start_msg_id, end_msg_id + 1, batch_size):
@@ -163,8 +161,6 @@ async def send_msg(client, message):
                         await asyncio.sleep(3)
 
         await message.reply_text("Messages send successfully ✅")
-        await link_msg_start.delete()
-        await link_msg_end.delete()
 
     except FloodWait as e:
         await asyncio.sleep(e.value)
