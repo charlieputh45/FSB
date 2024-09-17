@@ -139,7 +139,7 @@ async def send_msg(client, message):
                         new_caption = await remove_unwanted(caption)
 
                         # Generate file path
-                        logger.info(f"Downloading initial part of {file_id}...")
+                        logger.info(f"Downloading {file_id} to {end_msg_id}")
 
                         file_path = await app.download_media(media.file_id)
                         print("download complete")
