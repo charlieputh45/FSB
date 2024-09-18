@@ -48,47 +48,36 @@ with app:
     bot_username = (app.get_me()).username
 
 @app.on_message(filters.private & filters.command("start"))
-async def get_command(client, message): 
-     user_id = message.from_user.id
-     user_link = await get_user_link(message.from_user)
+async def get_command(client, message):
+    user_id = message.from_user.id
+    user_link = await get_user_link(message.from_user)
 
-     if len(message.command) > 1 and message.command[1] == "token":
+    if len(message.command) > 1 and message.command[1] == "token":
         try:
-            file_id = 960
+            file_id = 1366
             get_msg = await app.get_messages(DB_CHANNEL_ID, int(file_id))
             cpy_msg = await get_msg.copy(chat_id=message.chat.id)
-            await auto_delete_message(message, cpy_msg)
+            await message.delete()
+            await asyncio.sleep(300)
+            await cpy_msg.delete()
             
         except Exception as e:
             logger.error(f"{e}")
         return
 
-     if len(message.command) > 1 and len(message.command[1]) == 36:
-         input_token = message.command[1] if len(message.command) > 1 else None
-         token_msg = await verify_token(user_id, input_token)
-         reply = await message.reply_text(token_msg)
-         await app.send_message(LOG_CHANNEL_ID, f"User🕵️‍♂️{user_link} with 🆔 {user_id} @{bot_username} {token_msg}", parse_mode=enums.ParseMode.HTML)
-         await auto_delete_message(message, reply)
-         return
-     
-     else:
-        mongo_collection.update_one(
-                {'user_id': user_id},
-                {'$set': {'user_id': user_id}}, 
-                upsert=True
-            )
-        reply = await message.reply_text(f"<b>💐Welcome this is TG⚡️Flix Bot")
+    if len(message.command) > 1 and len(message.command[1]) == 36:
+        input_token = message.command[1] if len(message.command) > 1 else None
+        token_msg = await verify_token(user_id, input_token)
+        reply = await message.reply_text(token_msg)
+        await app.send_message(LOG_CHANNEL_ID, f"User🕵️‍♂️{user_link} with 🆔 {user_id} @{bot_username} {token_msg}", parse_mode=enums.ParseMode.HTML)
         await auto_delete_message(message, reply)
+        return
 
-@app.on_message(filters.private & filters.command("get"))
-async def handle_get_command(client, message):
-    user_id = message.from_user.id
-    if not await check_access(message, user_id):
-         return
-    
     file_id = message.command[1] if len(message.command) > 1 else None
 
     if file_id:
+        if not await check_access(message, user_id):
+            return
         try:
             file_message = await app.get_messages(DB_CHANNEL_ID, int(file_id))
             media = file_message.video or file_message.audio or file_message.document
@@ -98,46 +87,38 @@ async def handle_get_command(client, message):
                     new_caption = await remove_extension(caption)
                     copy_message = await file_message.copy(chat_id=message.chat.id, caption=f"<b>{new_caption}</b>", parse_mode=enums.ParseMode.HTML)
                     user_data[user_id]['file_count'] = user_data[user_id].get('file_count', 0) + 1
-
                 else:
                     copy_message = await file_message.copy(chat_id=message.chat.id)
                     user_data[user_id]['file_count'] = user_data[user_id].get('file_count', 0) + 1
-
                 await auto_delete_message(message, copy_message)
-
                 await asyncio.sleep(3)
-
             else:
-                 reply = await message.reply_text("File not found or inaccessible.")
-                 await auto_delete_message(message, reply)
+                reply = await message.reply_text("File not found or inaccessible.")
+                await auto_delete_message(message, reply)
 
         except ValueError:
-                reply = await message.reply_text("Invalid File ID") 
-                await auto_delete_message(message, reply)  
+            reply = await message.reply_text("Invalid File ID") 
+            await auto_delete_message(message, reply)  
 
         except FloodWait as f:
             await asyncio.sleep(f.value)
             if caption:
                 copy_message = await file_message.copy(chat_id=message.chat.id, caption=f"<b>{new_caption}</b>", parse_mode=enums.ParseMode.HTML)
                 user_data[user_id]['file_count'] = user_data[user_id].get('file_count', 0) + 1
-
             else:
                 copy_message = await file_message.copy(chat_id=message.chat.id)
                 user_data[user_id]['file_count'] = user_data[user_id].get('file_count', 0) + 1
 
-
             await auto_delete_message(message, copy_message)
-            user_data[user_id]['file_count'] += 1
             await asyncio.sleep(3)
     else:
-        reply = await message.reply_text("Provide a File Id")
-        await auto_delete_message(message, reply)  
-
-@app.on_message(filters.private & (filters.document | filters.video) & filters.user(OWNER_USERNAME))
-async def forward_message_to_new_channel(client, message):
-    if message.photo:
-        message.copy(CAPTION_CHANNEL_ID)
-
+        mongo_collection.update_one(
+                {'user_id': user_id},
+                {'$set': {'user_id': user_id}}, 
+                upsert=True
+            )
+        reply = await message.reply_text(f"<b>💐Welcome this is TG⚡️Flix Bot")
+        await auto_delete_message(message, reply)
 
 @app.on_message(filters.command("copy") & filters.user(OWNER_USERNAME))
 async def copy_msg(client, message):    
@@ -229,7 +210,7 @@ async def verify_token(user_id, input_token):
     if input_token == stored_token:
         token = str(uuid.uuid4())
         user_data[user_id] = {"token": token, "time": current_time, "status": "verified", "file_count": 0}
-        return f'Token Verified ✅'
+        return f'Token Verified ✅ (Validity: {get_readable_time(TOKEN_TIMEOUT)})'
     else:
         return f'Token Mismatched ❌'
     
@@ -249,11 +230,11 @@ async def check_access(message, user_id):
                 await auto_delete_message(message, reply)
         else:
             button = await update_token(user_id)
-            send_message = await app.send_message(user_id,f'<b>You need to collect your token first 🎟\n(Valid: {get_readable_time(TOKEN_TIMEOUT)})</b>', reply_markup=button)
+            send_message = await app.send_message(user_id,f'<b>Get Free 💎 Limited Access \n</b>', reply_markup=button)
             await auto_delete_message(message, send_message)
     else:
         button = await genrate_token(user_id)
-        send_message = await app.send_message(user_id,f'<b>You need to collect your token first 🎟\n(Valid: {get_readable_time(TOKEN_TIMEOUT)})</b>', reply_markup=button)
+        send_message = await app.send_message(user_id,f'<b>Get Free 💎 Limited Access</b>', reply_markup=button)
         await auto_delete_message(message, send_message)
 
 async def update_token(user_id):
@@ -268,9 +249,9 @@ async def update_token(user_id):
         user_data[user_id] = {"token": token, "time": current_time, "status": "unverified", "file_count": 0}
         urlshortx = await shorten_url(f'https://telegram.me/{bot_username}?start={token}')
         token_url = f'https://telegram.me/{bot_username}?start=token'
-        button1 = InlineKeyboardButton("Collect Token", url=urlshortx)
-        button2 = InlineKeyboardButton("How to Bypass Token", url=token_url)
-        button = InlineKeyboardMarkup([[button1, button2]])
+        button1 = InlineKeyboardButton("💸 Watching Ads", url=urlshortx)
+        button2 = InlineKeyboardButton("👨‍🏫 How to Watch Ads", url=token_url)
+        button = InlineKeyboardMarkup([[button1], [button2]]) 
         return button
     except Exception as e:
         logger.error(f"error in update_token: {e}")
@@ -282,9 +263,9 @@ async def genrate_token(user_id):
         user_data[user_id] = {"token": token, "time": current_time, "status": "unverified", "file_count": 0}
         urlshortx = await shorten_url(f'https://telegram.me/{bot_username}?start={token}')
         token_url = f'https://telegram.me/{bot_username}?start=token'
-        button1 = InlineKeyboardButton("Collect Token", url=urlshortx)
-        button2 = InlineKeyboardButton("How to Bypass Token", url=token_url)
-        button = InlineKeyboardMarkup([[button1, button2]])
+        button1 = InlineKeyboardButton("💸 Watching Ads", url=urlshortx)
+        button2 = InlineKeyboardButton("👨‍🏫 How to Watch Ads", url=token_url)
+        button = InlineKeyboardMarkup([[button1], [button2]]) 
         return button
     except Exception as e:
         logger.error(f"error in genrate_token: {e}")
