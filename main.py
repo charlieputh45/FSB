@@ -83,9 +83,11 @@ async def forward_message_to_new_channel(client, message):
                 
                 await upld_msg.edit_text("Uploaded ✅")
 
-                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}   🆔 <code>{send_msg.id}</code></b>"
+                file_link = f'https://telegram.me/{bot_username}?start={send_msg.id}'
 
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
+                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}</b>"
+
+                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
 
                 os.remove(thumbnail_path)
                 os.remove(file_path)
@@ -149,11 +151,13 @@ async def send_msg(client, message):
                         if thumbnail_path:
                             print(f"Thumbnail generated: {thumbnail_path}")
                         else:
-                            print("Failed to generate thumbnail")  
+                            print("Failed to generate thumbnail")
 
-                        file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}   🆔 <code>{file_message.id}</code></b>"
+                        file_link = f'https://telegram.me/{bot_username}?start={file_message.id}'
+                        
+                        file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}</b>"
 
-                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
+                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
 
                         os.remove(thumbnail_path)
                         os.remove(file_path)
