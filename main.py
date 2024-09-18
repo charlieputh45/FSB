@@ -7,6 +7,8 @@ from pyromod import listen
 from pyrogram.errors import FloodWait
 from pyrogram import Client, filters, enums
 from asyncio import get_event_loop
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
 
 DOWNLOAD_PATH = "downloads/"
 loop = get_event_loop()
@@ -83,9 +85,12 @@ async def forward_message_to_new_channel(client, message):
                 
                 await upld_msg.edit_text("Uploaded ✅")
 
-                file_link = f'https://telegram.me/{bot_username}?start={send_msg.id}'
+                file_link = f'https://telegram.me/thetgflixxxbot?start={send_msg.id}'
 
                 file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}</b>"
+
+                button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
+
 
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
 
@@ -154,9 +159,11 @@ async def send_msg(client, message):
                             else:
                                 print("Failed to generate thumbnail")
     
-                            file_link = f'https://telegram.me/{bot_username}?start={file_message.id}'
+                            file_link = f'https://telegram.me/thetgflixxxbot?start={file_message.id}'
                             
                             file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}</b>"
+
+                            button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
     
                             await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
     
