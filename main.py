@@ -133,37 +133,44 @@ async def send_msg(client, message):
                 media = file_message.document or file_message.video or file_message.audio
 
                 if media:
-                    file_id = file_message.id
-                    caption = file_message.caption if file_message.caption else None
-                    file_size = media.file_size
+                    try:
+                        file_id = file_message.id
+                        caption = file_message.caption if file_message.caption else None
+                        file_size = media.file_size
 
-                    if caption:
-                        new_caption = await remove_unwanted(caption)
+                        if caption:
+                            new_caption = await remove_unwanted(caption)
 
-                        # Generate file path
-                        logger.info(f"Downloading {file_id} to {end_msg_id}")
+                            # Generate file path
+                            logger.info(f"Downloading {file_id} to {end_msg_id}")
 
-                        file_path = await app.download_media(media.file_id)
-                        print("download complete")
-                        # Generate a thumbnail
-                        thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+                            file_path = await app.download_media(media.file_id)
+                            print("download complete")
+                            # Generate a thumbnail
+                            thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
-                        if thumbnail_path:
-                            print(f"Thumbnail generated: {thumbnail_path}")
-                        else:
-                            print("Failed to generate thumbnail")
-
-                        file_link = f'https://telegram.me/{bot_username}?start={file_message.id}'
-                        
-                        file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}</b>"
-
-                        await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
-
-                        os.remove(thumbnail_path)
-                        os.remove(file_path)
-
-                        await asyncio.sleep(3)
-
+                            if thumbnail_path:
+                                print(f"Thumbnail generated: {thumbnail_path}")
+                            else:
+                                print("Failed to generate thumbnail")
+    
+                            file_link = f'https://telegram.me/{bot_username}?start={file_message.id}'
+                            
+                            file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}</b>"
+    
+                            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
+    
+                            os.remove(thumbnail_path)
+                            os.remove(file_path)
+    
+                            await asyncio.sleep(3)
+                            
+                    except Exception as e:
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        if os.path.exists(thumbnail_path):
+                            os.remove(thumbnail_path)
+            
         await message.reply_text("Messages send successfully ✅")
 
     except FloodWait as e:
@@ -171,11 +178,6 @@ async def send_msg(client, message):
 
     except Exception as e:
         logger.error(f'{e}')
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(thumbnail_path):
-            os.remove(thumbnail_path)
 
 @app.on_message(filters.command("copy") & filters.user(OWNER_USERNAME))
 async def copy_msg(client, message):    
