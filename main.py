@@ -85,14 +85,10 @@ async def forward_message_to_new_channel(client, message):
                 
                 await upld_msg.edit_text("Uploaded ✅")
 
-                file_link = f'https://telegram.me/thetgflixxxbot?start={send_msg.id}'
 
-                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}</b>"
+                file_info = f"<b>🗂️ {escape(new_caption)}💾 {humanbytes(file_size)}\n\n🆔<code>{send_msg.id}</code></b>"
 
-                button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
-
-
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
+                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
 
                 os.remove(thumbnail_path)
                 os.remove(file_path)
@@ -159,13 +155,10 @@ async def send_msg(client, message):
                             else:
                                 print("Failed to generate thumbnail")
     
-                            file_link = f'https://telegram.me/thetgflixxxbot?start={file_message.id}'
                             
-                            file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}</b>"
-
-                            button = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
+                            file_info = f"<b>🗂️ {escape(new_caption)}💾 {humanbytes(file_size)}\n\n🆔<code>{send_msg.id}</code></b>"
     
-                            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=button)
+                            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
     
                             os.remove(thumbnail_path)
                             os.remove(file_path)
