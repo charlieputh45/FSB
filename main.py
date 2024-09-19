@@ -7,13 +7,11 @@ from pyromod import listen
 from pyrogram.errors import FloodWait
 from pyrogram import Client, filters, enums
 from asyncio import get_event_loop
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
 
 DOWNLOAD_PATH = "downloads/"
 loop = get_event_loop()
-THUMBNAIL_COUNT = 9
-GRID_COLUMNS = 3 # Number of columns in the grid
+THUMBNAIL_COUNT = 6
+GRID_COLUMNS = 2 # Number of columns in the grid
 
 os.makedirs(DOWNLOAD_PATH, exist_ok=True)
 
@@ -86,7 +84,7 @@ async def forward_message_to_new_channel(client, message):
                 await upld_msg.edit_text("Uploaded ✅")
 
 
-                file_info = f"<b>🗂️ {escape(new_caption)}💾 {humanbytes(file_size)}\n\n🆔<code>{send_msg.id}</code></b>"
+                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}  🆔 <code>{send_msg.id}</code></b>"
 
                 await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
 
@@ -145,32 +143,42 @@ async def send_msg(client, message):
                             # Generate file path
                             logger.info(f"Downloading {file_id} to {end_msg_id}")
 
-                            file_path = await app.download_media(media.file_id)
-                            print("download complete")
-                            # Generate a thumbnail
-                            thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+                            # Set chunk size (let's use 10% of the file size)
+                            chunk_size = int(file_size * 0.2)
+
+                            partial_file_path = f"{file_id}_partial"
+
+                            await download_initial_part(app, media, partial_file_path, chunk_size)
+
+                            thumbnail_path, duration = await generate_combined_thumbnail(partial_file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+
+                            if not thumbnail_path:
+                                file_path = await app.download_media(media.file_id)
+                                thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+
+                                os.remove(file_path)  # Clean up after full download
 
                             if thumbnail_path:
                                 print(f"Thumbnail generated: {thumbnail_path}")
+                                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}  🆔 <code>{file_message.id}</code></b>"
+                                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
+                                os.remove(thumbnail_path)
                             else:
-                                print("Failed to generate thumbnail")
-    
-                            
-                            file_info = f"<b>🗂️ {escape(new_caption)}💾 {humanbytes(file_size)}\n\n🆔<code>{send_msg.id}</code></b>"
-    
-                            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
-    
-                            os.remove(thumbnail_path)
-                            os.remove(file_path)
-    
+                                print(f"Failed to generate thumbnail for{file_message.id}")
+
+                            # Clean up partial file
+                            if os.path.exists(partial_file_path):
+                                os.remove(partial_file_path)
+
                             await asyncio.sleep(3)
-                            
+
                     except Exception as e:
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
+                        logger.error(f"Error: {e}")
+                        if os.path.exists(partial_file_path):
+                            os.remove(partial_file_path)
                         if os.path.exists(thumbnail_path):
                             os.remove(thumbnail_path)
-            
+
         await message.reply_text("Messages send successfully ✅")
 
     except FloodWait as e:
