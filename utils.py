@@ -79,15 +79,16 @@ async def extract_channel_id(telegram_link):
     except Exception as e:
         logger.error(e)
         
-'''
+# Function to download the initial part of the media file in chunks
 async def download_initial_part(client, media, file_path, chunk_size):
-    # Open the file for writing in binary mode
-    with open(file_path, 'wb') as f:
-        async for chunk in client.stream_media(media):
-            f.write(chunk)
-            if f.tell() >= chunk_size:
-                break
-'''
+    try:
+        with open(file_path, 'wb') as f:
+            async for chunk in client.stream_media(media):
+                f.write(chunk)
+                if f.tell() >= chunk_size:
+                    break
+    except Exception as e:
+        print(f"Error downloading chunk: {e}")
 
 
 async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
