@@ -101,8 +101,8 @@ async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_
         ]
         duration = float(subprocess.check_output(duration_cmd).strip())
 
-        # Generate evenly spaced intervals
-        intervals = [duration * i / num_thumbnails for i in range(1, num_thumbnails + 1)]
+        # Generate evenly spaced intervals (excluding the very end)
+        intervals = [duration * i / (num_thumbnails + 1) for i in range(1, num_thumbnails + 1)]
 
         # Create thumbnails at specified intervals
         for i, interval in enumerate(intervals):
