@@ -79,16 +79,96 @@ async def extract_channel_id(telegram_link):
     except Exception as e:
         logger.error(e)
         
-# Function to download the initial part of the media file in chunks
+
 async def download_initial_part(client, media, file_path, chunk_size):
+    # Open the file for writing in binary mode
+    with open(file_path, 'wb') as f:
+        async for chunk in client.stream_media(media):
+            f.write(chunk)
+            if f.tell() >= chunk_size:
+                break
+
+
+async def handle_partial_download_and_thumbnail(client, media, file_path, chunk_size, num_thumbnails, grid_columns):
+    # Step 1: Download the initial part of the file
+    await download_initial_part(client, media, file_path, chunk_size)
+
+    # Step 2: Estimate the duration of the downloaded portion (optional)
     try:
-        with open(file_path, 'wb') as f:
-            async for chunk in client.stream_media(media):
-                f.write(chunk)
-                if f.tell() >= chunk_size:
-                    break
+        duration_cmd = [
+            'ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
+            '-of', 'default=noprint_wrappers=1:nokey=1', file_path
+        ]
+        duration = float(subprocess.check_output(duration_cmd).strip())
     except Exception as e:
-        print(f"Error downloading chunk: {e}")
+        print(f"Error estimating duration: {e}")
+        # If ffprobe fails, assume a default duration
+        duration = 30.0  # Adjust based on your requirements
+
+    # Step 3: Generate the combined thumbnail
+    thumbnail_path = await generate_partial_thumbnail(file_path, num_thumbnails, grid_columns, duration)
+
+    return thumbnail_path
+
+async def generate_partial_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int, max_duration: float) -> str:
+    try:
+        # List to store individual thumbnails
+        thumbnails = []
+
+        # Set the duration to the max_duration of the partial file
+        duration = max_duration
+
+        # Generate random intervals within the available duration
+        intervals = [random.uniform(0, duration) for _ in range(num_thumbnails)]
+
+        # Create thumbnails at specified intervals
+        for i, interval in enumerate(intervals):
+            thumbnail_path = f"{file_path}_thumb_{i}.jpg"
+            thumbnail_cmd = [
+                'ffmpeg', '-ss', str(interval), '-i', file_path, 
+                '-frames:v', '1', thumbnail_path, '-y'
+            ]
+            result = subprocess.run(thumbnail_cmd, capture_output=True)
+            if result.returncode == 0:
+                thumbnails.append(thumbnail_path)
+            else:
+                print(f"Failed to generate thumbnail at interval {interval}. Skipping.")
+
+        # Open all successfully generated thumbnails and combine them into a grid
+        if thumbnails:
+            images = [Image.open(thumb) for thumb in thumbnails]
+            widths, heights = zip(*(img.size for img in images))
+
+            max_width = max(widths)
+            max_height = max(heights)
+
+            # Calculate grid dimensions
+            grid_rows = (len(images) + grid_columns - 1) // grid_columns
+            grid_width = grid_columns * max_width
+            grid_height = grid_rows * max_height
+
+            combined_image = Image.new('RGB', (grid_width, grid_height))
+
+            for index, img in enumerate(images):
+                x = (index % grid_columns) * max_width
+                y = (index // grid_columns) * max_height
+                combined_image.paste(img, (x, y))
+
+            combined_thumbnail_path = f"{file_path}_combined.jpg"
+            combined_image.save(combined_thumbnail_path)
+
+            # Clean up individual thumbnails
+            for thumb in thumbnails:
+                os.remove(thumb)
+
+            return combined_thumbnail_path
+        else:
+            print("No thumbnails generated.")
+            return None
+
+    except Exception as e:
+        print(f"Error generating combined thumbnail: {e}")
+        return None
 
 
 async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
