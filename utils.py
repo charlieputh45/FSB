@@ -1,261 +1,168 @@
-import os 
-from utils import *
+import re
+import random
+import subprocess
+import asyncio
+from PIL import Image
 from config import *
-from html import escape
-from pyrogram import idle
-from pyromod import listen
-from pyrogram.errors import FloodWait
-from pyrogram import Client, filters, enums
-from asyncio import get_event_loop
 
-DOWNLOAD_PATH = "downloads/"
-loop = get_event_loop()
-THUMBNAIL_COUNT = 6
-GRID_COLUMNS = 2 # Number of columns in the grid
-
-os.makedirs(DOWNLOAD_PATH, exist_ok=True)
-
-user_data = {}
-TOKEN_TIMEOUT = 7200
-
-app = Client(
-    "my_bot",
-      api_id=API_ID,
-      api_hash=API_HASH, 
-      bot_token=BOT_TOKEN, 
-      workers=1000, 
-      parse_mode=enums.ParseMode.HTML,
-      in_memory=True)
-
-user = Client(
-                "userbot",
-                api_id=int(API_ID),
-                api_hash=API_HASH,
-                session_string=STRING_SESSION,
-                no_updates = True
-            )
-
-async def main():
-    async with app, user:
-        await idle()
-
-with app:
-    bot_username = (app.get_me()).username
-
-@app.on_message(filters.private & (filters.document | filters.video) & filters.user(OWNER_USERNAME))
-async def forward_message_to_new_channel(client, message):
+async def auto_delete_message(user_message, bot_message):
     try:
-        media = message.document or message.video
-        file_id = message.id
-        file_size = media.file_size
-
-        if media:
-            caption = message.caption if message.caption else None
-
-            if caption:
-                new_caption = await remove_unwanted(caption)
-
-                # Generate file path
-                logger.info(f"Downloading initial part of {file_id}...")
-                
-                dwnld_msg = await message.reply_text("📥 Downloading")
-                
-                file_path = await app.download_media(message, file_name=f"{caption}")
-                print("Generating Thumbnail")
-                # Generate a thumbnail
-                thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
-
-                if thumbnail_path:
-                    print(f"Thumbnail generated: {thumbnail_path}")
-                else:
-                    print("Failed to generate thumbnail")   
-
-
-                upld_msg = await dwnld_msg.edit_text("⏫ Uploading")
-                send_msg = await app.send_video(DB_CHANNEL_ID, 
-                                                video=file_path, 
-                                                caption=f"<code>{escape(caption)}</code>",
-                                                duration=duration, 
-                                                width=480, 
-                                                height=320, 
-                                                thumb=thumbnail_path
-                                               )
-                
-                await upld_msg.edit_text("Uploaded ✅")
-
-
-                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}  🆔 <code>{send_msg.id}</code></b>"
-
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
-
-                os.remove(thumbnail_path)
-                os.remove(file_path)
-
-                await asyncio.sleep(3)
-
+        await user_message.delete()
+        await asyncio.sleep(60)
+        await bot_message.delete()
     except Exception as e:
-        logger.error(f'{e}') 
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(thumbnail_path):
-            os.remove(thumbnail_path)
+        logger.error(f"{e}")
         
-        
-@app.on_message(filters.command("start"))
-async def get_command(client, message):
-    reply = await message.reply_text(f"<b>💐Welcome this is TG⚡️Flix Bot")
-    await auto_delete_message(message, reply)
-
-# Send Multiple Command
-@app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
-async def send_msg(client, message):
-    try:
-        await message.delete()
-        async def get_user_input(prompt):
-            rply = await message.reply_text(prompt)
-            link_msg = await app.listen(message.chat.id)
-            await link_msg.delete()
-            await rply.delete()
-            return link_msg.text
-            
-        start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
-        end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
-        
-        batch_size = 199
-        for start in range(start_msg_id, end_msg_id + 1, batch_size):
-            end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
-            file_messages = await app.get_messages(DB_CHANNEL_ID, range(start, end + 1))
-
-            for file_message in file_messages:
-
-                media = file_message.document or file_message.video or file_message.audio
-
-                if media:
-                    try:
-                        file_id = file_message.id
-                        caption = file_message.caption if file_message.caption else None
-                        file_size = media.file_size
-
-                        if caption:
-                            new_caption = await remove_unwanted(caption)
-
-                            # Generate file path
-                            logger.info(f"Downloading {file_id} to {end_msg_id}")
-
-                            # Set chunk size (let's use 10% of the file size)
-                            chunk_size = int(file_size * 0.2)
-
-                            partial_file_path = f"{file_id}_partial"
-
-                            await download_initial_part(app, media, partial_file_path, chunk_size)
-
-                            thumbnail_path, duration = await generate_combined_thumbnail(partial_file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
-
-                            if not thumbnail_path:
-                                file_path = await app.download_media(media.file_id)
-                                thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
-
-                                os.remove(file_path)  # Clean up after full download
-
-                            if thumbnail_path:
-                                print(f"Thumbnail generated: {thumbnail_path}")
-                                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}  🆔 <code>{file_message.id}</code></b>"
-                                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
-                                os.remove(thumbnail_path)
-                            else:
-                                print(f"Failed to generate thumbnail for{file_message.id}")
-
-                            # Clean up partial file
-                            if os.path.exists(partial_file_path):
-                                os.remove(partial_file_path)
-
-                            await asyncio.sleep(3)
-
-                    except Exception as e:
-                        logger.error(f"Error: {e}")
-                        if os.path.exists(partial_file_path):
-                            os.remove(partial_file_path)
-                        if os.path.exists(thumbnail_path):
-                            os.remove(thumbnail_path)
-
-        await message.reply_text("Messages send successfully ✅")
-
-    except FloodWait as e:
-        await asyncio.sleep(e.value)
-
-    except Exception as e:
-        logger.error(f'{e}')
-
-@app.on_message(filters.command("copy") & filters.user(OWNER_USERNAME))
-async def copy_msg(client, message):    
-    try:
-        await message.delete()
-        async def get_user_input(prompt):
-            rply = await message.reply_text(prompt)
-            link_msg = await app.listen(message.chat.id)
-            await link_msg.delete()
-            await rply.delete()
-            return link_msg.text
-        
-        # Collect input from the user
-        start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
-        end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
-        db_channel_id = int(await extract_channel_id(await get_user_input("Send db_channel link")))
-        destination_id = int(await extract_channel_id(await get_user_input("Send destination channel link")))
-
-        batch_size = 199
-        for start in range(start_msg_id, end_msg_id + 1, batch_size):
-            end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
-            # Get and copy messages
-            file_messages = await app.get_messages(db_channel_id, range(start, end + 1))
-
-            for file_message in file_messages:
-                if file_message and (file_message.video):
-                    caption = file_message.caption.html if file_message.caption else None
-                    await file_message.copy(destination_id, caption=caption)
-                    await asyncio.sleep(3)
-                    
-        await message.reply_text("Messages copied successfully!✅")
-        
-    except FloodWait as e:
-        await asyncio.sleep(e.value)
-    except Exception as e:
-        logger.error(f'{e}')
-
-# Delete Commmand
-@app.on_message(filters.command("delete") & filters.user(OWNER_USERNAME))
-async def get_command(client, message):
-    try:
-        await message.reply_text("Enter channel_id")
-        channel_id = int((await app.listen(message.chat.id)).text)
-
-        await message.reply_text("Enter count")
-        limit = int((await app.listen(message.chat.id)).text)
-
-        await app.send_message(channel_id, "Hi")
-
-        try:
-            async for message in user.get_chat_history(channel_id, limit):
-                await message.delete()
-        except Exception as e:
-            logger.error(f"Error deleting messages: {e}")
-        await user.send_message(channel_id, "done")
-    except Exception as e:
-        logger.error(f"Error : {e}")
-
-# Get Log Command
-@app.on_message(filters.command("log") & filters.user(OWNER_USERNAME))
-async def log_command(client, message):
-    user_id = message.from_user.id
-
-    # Send the log file
-    try:
-        reply = await app.send_document(user_id, document=LOG_FILE_NAME, caption="Bot Log File")
-        await auto_delete_message(message, reply)
-    except Exception as e:
-        await app.send_message(user_id, f"Failed to send log file. Error: {str(e)}")
+def get_readable_time(seconds: int) -> str:
+    result = ""
+    (days, remainder) = divmod(seconds, 86400)
+    days = int(days)
+    if days != 0:
+        result += f"{days}d"
+    (hours, remainder) = divmod(remainder, 3600)
+    hours = int(hours)
+    if hours != 0:
+        result += f"{hours}h"
+    (minutes, seconds) = divmod(remainder, 60)
+    minutes = int(minutes)
+    if minutes != 0:
+        result += f" {minutes}m"
+    seconds = int(seconds)
+    result += f" {seconds}s"
+    return result
     
-      
-if __name__ == "__main__":
-    loop.run_until_complete(main())
+async def remove_unwanted(caption):
+    try:
+        # Remove .mkv and .mp4 extensions if present
+        cleaned_caption = re.sub(r'\.mkv|\.mp4|\.webm', '', caption)
+        return cleaned_caption
+    except Exception as e:
+        logger.error(e)
+        return None
+
+def humanbytes(size):
+    # Function to format file size in a human-readable format
+    if not size:
+        return "0 B"
+    # Define byte sizes
+    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    i = 0
+    while size >= 1024 and i < len(suffixes) - 1:
+        size /= 1024
+        i += 1
+    f = ('%.2f' % size).rstrip('0').rstrip('.')
+    return f"{f} {suffixes[i]}"
+
+  
+async def extract_tg_link(telegram_link):
+    try:
+        pattern = re.compile(r'https://t\.me/c/(-?\d+)/(\d+)')
+        match = pattern.match(telegram_link)
+        if match:
+            message_id = match.group(2)
+            return message_id
+        else:
+            return None, None
+    except Exception as e:
+        logger.error(e)
+
+async def extract_channel_id(telegram_link):
+    try:
+        pattern = re.compile(r'https://t\.me/c/(-?\d+)/(\d+)')
+        match = pattern.match(telegram_link)
+        if match:
+            channel_id = match.group(1)
+            formatted_channel_id = f'-100{channel_id}'
+            return formatted_channel_id
+        else:
+            return None
+    except Exception as e:
+        logger.error(e)
+        
+# Function to download the initial part of the media file in chunks
+async def download_initial_part(client, media, file_path, chunk_size):
+    try:
+        with open(file_path, 'wb') as f:
+            async for chunk in client.stream_media(media):
+                f.write(chunk)
+                if f.tell() >= chunk_size:
+                    break
+    except Exception as e:
+        print(f"Error downloading chunk: {e}")
+
+
+async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
+    try:
+        # List to store individual thumbnails
+        thumbnails = []
+
+        # Use ffprobe to get video duration
+        duration_cmd = [
+            'ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
+            '-of', 'default=noprint_wrappers=1:nokey=1', file_path
+        ]
+        duration = float(subprocess.check_output(duration_cmd).strip())
+
+        # Generate random intervals
+        intervals = [random.uniform(0, duration) for _ in range(num_thumbnails)]
+
+        # Create thumbnails at specified intervals
+        for i, interval in enumerate(intervals):
+            thumbnail_path = f"{file_path}_thumb_{i}.jpg"
+            thumbnail_cmd = [
+                'ffmpeg', '-ss', str(interval), '-i', file_path, 
+                '-frames:v', '1', thumbnail_path, '-y'
+            ]
+            subprocess.run(thumbnail_cmd, capture_output=True, check=True)
+            thumbnails.append(thumbnail_path)
+
+        # Open all thumbnails and combine them into a grid
+        images = [Image.open(thumb) for thumb in thumbnails]
+        widths, heights = zip(*(img.size for img in images))
+
+        max_width = max(widths)
+        max_height = max(heights)
+
+        # Calculate grid dimensions
+        grid_rows = (len(images) + grid_columns - 1) // grid_columns
+        grid_width = grid_columns * max_width
+        grid_height = grid_rows * max_height
+
+        combined_image = Image.new('RGB', (grid_width, grid_height))
+
+        for index, img in enumerate(images):
+            x = (index % grid_columns) * max_width
+            y = (index // grid_columns) * max_height
+            combined_image.paste(img, (x, y))
+
+        combined_thumbnail_path = f"{file_path}_combined.jpg"
+        combined_image.save(combined_thumbnail_path)
+
+        # Clean up individual thumbnails
+        for thumb in thumbnails:
+            os.remove(thumb)
+
+        return combined_thumbnail_path, duration
+    except Exception as e:
+        print(f"Error generating combined thumbnail: {e}")
+        return None
+    
+
+'''
+def generate_thumbnail(file_path: str) -> str:
+    try:
+        # Output thumbnail path
+        thumbnail_path = f"{file_path}.jpg"
+
+        # Use ffmpeg to generate a thumbnail
+        (
+            zender
+            .input(file_path, ss='00:00:01')  # Seek to 1 second
+            .output(thumbnail_path, vframes=1)
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+        return thumbnail_path
+    except Exception as e:
+        print(f"Error generating thumbnail: {e}")
+        return None
+'''
