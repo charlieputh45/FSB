@@ -11,8 +11,8 @@ from asyncio import get_event_loop
 
 DOWNLOAD_PATH = "downloads/"
 loop = get_event_loop()
-THUMBNAIL_COUNT = 6
-GRID_COLUMNS = 2 # Number of columns in the grid
+THUMBNAIL_COUNT = 9
+GRID_COLUMNS = 3 # Number of columns in the grid
 
 os.makedirs(DOWNLOAD_PATH, exist_ok=True)
 
