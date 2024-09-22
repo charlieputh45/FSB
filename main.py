@@ -6,8 +6,8 @@ from pyrogram import idle
 from pyromod import listen
 from pyrogram.errors import FloodWait
 from pyrogram import Client, filters, enums
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from asyncio import get_event_loop
-
 
 DOWNLOAD_PATH = "downloads/"
 loop = get_event_loop()
@@ -85,9 +85,10 @@ async def forward_message_to_new_channel(client, message):
                 await upld_msg.edit_text("Uploaded ✅")
 
 
-                file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}  🆔 <code>{send_msg.id}</code></b>"
-
-                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
+                file_info = f"🗂️ <b>{escape(cap_no_ext)}</b>\n\n💾 <b>{humanbytes(file_size)}</b>"
+                file_link  = f"https://thetgflix.sshemw.workers.dev/bot2/{send_msg.id}"
+                keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
+                await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=keyboard)
 
                 os.remove(thumbnail_path)
                 os.remove(file_path)
@@ -156,10 +157,11 @@ async def send_msg(client, message):
                                 print("Failed to generate thumbnail")
     
                             
-                            file_info = f"<b>🗂️ {escape(new_caption)}\n\n💾 {humanbytes(file_size)}  🆔 <code>{file_message.id}</code></b>"
-    
-                            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info)
-    
+                            file_info = f"🗂️ <b>{escape(cap_no_ext)}</b>\n\n💾 <b>{humanbytes(file_size)}</b>"
+                            file_link  = f"https://thetgflix.sshemw.workers.dev/bot2/{file_message.id}"
+                            keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
+                            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=keyboard)
+        
                             os.remove(thumbnail_path)
                             os.remove(file_path)
     
