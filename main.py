@@ -1,4 +1,5 @@
 import os 
+import time
 from utils import *
 from config import *
 from html import escape
@@ -114,23 +115,43 @@ async def get_command(client, message):
 async def send_msg(client, message):
     try:
         await message.delete()
+
         async def get_user_input(prompt):
             rply = await message.reply_text(prompt)
             link_msg = await app.listen(message.chat.id)
             await link_msg.delete()
             await rply.delete()
             return link_msg.text
-            
+
         start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
         end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
-        
+
         batch_size = 199
+
+        async def progress(current, total, start_time, progress_msg, last_update_time, last_percentage):
+            elapsed_time = time.time() - start_time
+            speed = current / elapsed_time if elapsed_time > 0 else 0  # Bytes per second
+            percentage = current * 100 / total
+            speed_str = humanbytes(speed)
+            current_str = humanbytes(current)
+            total_str = humanbytes(total)
+
+            # Throttle updates: only update every 2 seconds or if progress changes by 5%
+            if time.time() - last_update_time >= 3:
+                progress_text = (f"Progress: {percentage:.2f}%\n"
+                                 f"Downloaded: {current_str} / {total_str}\n"
+                                 f"Speed: {speed_str}/s")
+
+                # Update progress message
+                await progress_msg.edit_text(progress_text)
+                return time.time(), percentage
+            return last_update_time, last_percentage
+
         for start in range(start_msg_id, end_msg_id + 1, batch_size):
-            end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
+            end = min(start + batch_size - 1, end_msg_id)
             file_messages = await app.get_messages(DB_CHANNEL_ID, range(start, end + 1))
 
             for file_message in file_messages:
-
                 media = file_message.document or file_message.video or file_message.audio
 
                 if media:
@@ -143,11 +164,21 @@ async def send_msg(client, message):
                             new_caption = await remove_unwanted(caption)
                             file_info = f"🗂️ <b>{escape(new_caption)}</b>\n\n💾 <b>{humanbytes(file_size)}</b>"
 
-                            # Generate file path
-                            logger.info(f"Downloading {file_id} to {end_msg_id}")
+                            progress_msg = await message.reply_text("Starting download...")
 
-                            file_path = await app.download_media(media.file_id)
-                            print("download complete")
+                            # Download with progress tracking
+                            logger.info(f"Downloading {file_id} to {end_msg_id}")
+                            start_time = time.time()
+                            last_update_time = start_time
+                            last_percentage = 0
+
+                            file_path = await app.download_media(
+                                file_message,
+                                progress=progress,
+                                progress_args=(start_time, progress_msg, last_update_time, last_percentage)
+                            )
+                            print("Download complete")
+
                             # Generate a thumbnail
                             thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
@@ -155,24 +186,40 @@ async def send_msg(client, message):
                                 print(f"Thumbnail generated: {thumbnail_path}")
                             else:
                                 print("Failed to generate thumbnail")
-    
-                            file_link  = f"https://thetgflix.sshemw.workers.dev/bot2/{file_message.id}"
+
+                            await progress_msg.edit_text("Uploading...")
+
+                            # Upload with progress tracking
+                            file_link = f"https://thetgflix.sshemw.workers.dev/bot2/{file_message.id}"
                             keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
-                            await app.send_photo(CAPTION_CHANNEL_ID, thumbnail_path, caption=file_info, reply_markup=keyboard)
-        
+                            start_time = time.time()
+                            last_update_time = start_time
+                            last_percentage = 0
+
+                            await app.send_photo(
+                                CAPTION_CHANNEL_ID,
+                                thumbnail_path,
+                                caption=file_info,
+                                reply_markup=keyboard,
+                                progress=progress,
+                                progress_args=(start_time, progress_msg, last_update_time, last_percentage)
+                            )
+
+                            await progress_msg.delete()
+
                             os.remove(thumbnail_path)
                             os.remove(file_path)
-    
+
                             await asyncio.sleep(3)
-                            
+
                     except Exception as e:
                         await app.send_photo(CAPTION_CHANNEL_ID, photo='photo.jpg', caption=file_info)
                         if os.path.exists(file_path):
                             os.remove(file_path)
                         if os.path.exists(thumbnail_path):
                             os.remove(thumbnail_path)
-            
-        await message.reply_text("Messages send successfully ✅")
+
+        await message.reply_text("Messages sent successfully ✅")
 
     except FloodWait as e:
         await asyncio.sleep(e.value)
