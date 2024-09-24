@@ -96,7 +96,7 @@ async def forward_message_to_new_channel(client, message):
 
     except Exception as e:
         logger.error(f'{e}') 
-        await app.send_photo(CAPTION_CHANNEL_ID, photo='photo.jpg', caption=file_info)
+        await app.send_photo(CAPTION_CHANNEL_ID, photo='photo.jpg', caption=file_info, reply_markup=keyboard)
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -166,7 +166,7 @@ async def send_msg(client, message):
                             await asyncio.sleep(3)
                             
                     except Exception as e:
-                        await app.send_photo(CAPTION_CHANNEL_ID, photo='photo.jpg', caption=file_info)
+                        await app.send_photo(CAPTION_CHANNEL_ID, photo='photo.jpg', caption=file_info, reply_markup=keyboard)
                         if os.path.exists(file_path):
                             os.remove(file_path)
                         if os.path.exists(thumbnail_path):
