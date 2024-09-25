@@ -1,4 +1,6 @@
 import os 
+import sys
+import time
 from utils import *
 from config import *
 from html import escape
@@ -25,23 +27,78 @@ app = Client(
       api_hash=API_HASH, 
       bot_token=BOT_TOKEN, 
       workers=1000, 
-      parse_mode=enums.ParseMode.HTML,
-      in_memory=True)
-
-user = Client(
-                "userbot",
-                api_id=int(API_ID),
-                api_hash=API_HASH,
-                session_string=STRING_SESSION,
-                no_updates = True
-            )
+      parse_mode=enums.ParseMode.HTML)
 
 async def main():
-    async with app, user:
+    async with app:
         await idle()
 
 with app:
     bot_username = (app.get_me()).username
+
+# Initialize global variables to track time and data
+start_time = None
+previous_time = None
+previous_bytes = 0
+total_bytes = 0
+
+async def progress(current, total):
+    global start_time, previous_time, previous_bytes, total_bytes
+
+    # Initialize timers and bytes on the first call
+    if start_time is None:
+        start_time = time.time()
+        previous_time = start_time
+
+    # Calculate percentage
+    percentage = current * 100 / total
+
+    # Update total bytes downloaded
+    total_bytes = current
+
+    # Get current time
+    current_time = time.time()
+
+    # Calculate elapsed time
+    elapsed_time = current_time - start_time
+
+    # Calculate speed
+    if elapsed_time > 0:
+        speed = (current - previous_bytes) / (current_time - previous_time)  # bytes per second
+        previous_time = current_time
+        previous_bytes = current
+
+        # Convert speed to MB/s
+        speed_mbps = speed / (1024 * 1024)  # Convert to MB/s
+
+        # Update progress in the same line
+        sys.stdout.write(f"\rProgress: {percentage:.1f}% | Speed: {speed_mbps:.2f} MB/s")
+    else:
+        # Update percentage only initially
+        sys.stdout.write(f"\rProgress: {percentage:.1f}%")
+    
+    sys.stdout.flush()  # Ensure the output is written immediately
+
+    # Return None, so the download can continue
+    return None
+
+async def finish_download():
+    global start_time, total_bytes
+
+    # Calculate average speed after the download is complete
+    elapsed_time = time.time() - start_time  # Total elapsed time
+    if elapsed_time > 0:
+        average_speed_mbps = total_bytes / elapsed_time / (1024 * 1024)  # Convert to MB/s
+        print(f"\nDownload completed! Average Speed: {average_speed_mbps:.2f} MB/s")
+    else:
+        print("\nDownload completed! Unable to calculate average speed.")
+
+# Reset variables when starting a new download
+def reset_progress():
+    global start_time, previous_time, previous_bytes
+    start_time = None
+    previous_time = None
+    previous_bytes = 0
 
 @app.on_message(filters.private & (filters.document | filters.video) & filters.user(OWNER_USERNAME))
 async def forward_message_to_new_channel(client, message):
@@ -49,6 +106,7 @@ async def forward_message_to_new_channel(client, message):
         media = message.document or message.video
         file_id = message.id
         file_size = media.file_size
+
 
         if media:
             caption = message.caption if message.caption else None
@@ -61,8 +119,12 @@ async def forward_message_to_new_channel(client, message):
                 logger.info(f"Downloading initial part of {file_id}...")
                 
                 dwnld_msg = await message.reply_text("📥 Downloading")
+                start_time = time.time()  # Initialize start time
+                previous_time = start_time
+                previous_bytes = 0
                 
-                file_path = await app.download_media(media.file_id)
+                file_path = await app.download_media(message, file_name=f"{message.id}", progress=progress)
+                                    
                 print("Generating Thumbnail")
                 # Generate a thumbnail
                 thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
@@ -96,6 +158,9 @@ async def forward_message_to_new_channel(client, message):
 
     except Exception as e:
         logger.error(f'{e}') 
+        file_link  = f"https://thetgflix.sshemw.workers.dev/bot2/{send_msg.id}"
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
+
         await app.send_photo(CAPTION_CHANNEL_ID, photo='photo.jpg', caption=file_info, reply_markup=keyboard)
     finally:
         if os.path.exists(file_path):
@@ -145,9 +210,10 @@ async def send_msg(client, message):
 
                             # Generate file path
                             logger.info(f"Downloading {file_id} to {end_msg_id}")
-
-                            file_path = await app.download_media(media.file_id)
-                            print("download complete")
+                            reset_progress()
+                            file_path = await app.download_media(file_message, file_name=f"{file_message.id}", progress=progress)
+                            await finish_download()
+                                                                                  
                             # Generate a thumbnail
                             thumbnail_path, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
@@ -166,6 +232,9 @@ async def send_msg(client, message):
                             await asyncio.sleep(3)
                             
                     except Exception as e:
+                        file_link  = f"https://thetgflix.sshemw.workers.dev/bot2/{file_message.id}"
+                        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Get File", url=file_link)]])
+
                         await app.send_photo(CAPTION_CHANNEL_ID, photo='photo.jpg', caption=file_info, reply_markup=keyboard)
                         if os.path.exists(file_path):
                             os.remove(file_path)
