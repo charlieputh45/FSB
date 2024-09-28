@@ -1,8 +1,9 @@
+
 import os
-from dotenv import load_dotenv
 import logging
-from logging.handlers import RotatingFileHandler
 from os import environ
+from dotenv import load_dotenv
+from logging.handlers import RotatingFileHandler
 from requests import get as rget
 
 LOG_FILE_NAME = "log.txt"
@@ -42,12 +43,15 @@ except:
 
 load_dotenv('config.env', override=True)
 
+#TELEGRAM API
 API_ID = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-OWNER_USERNAME = os.getenv('OWNER_USERNAME')
-OWNER_ID = int(os.getenv('OWNER_ID'))
-STRING_SESSION = os.getenv('STRING_SESSION')
-
 DB_CHANNEL_ID = int(os.getenv('DB_CHANNEL_ID'))
-CAPTION_CHANNEL_ID = int(os.getenv('CAPTION_CHANNEL_ID'))
+OWNER_USERNAME = os.getenv('OWNER_USERNAME')
+
+
+#MONGO URI
+MONGO_URI = os.getenv('MONGO_URI')
+MONGO_DB_NAME = "tgfiles"
+COLLECTION_NAME = 'details'
