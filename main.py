@@ -43,7 +43,7 @@ async def worker():
         if message is None:
             break  # Exit if a sentinel value is received
         
-        await forward_message_to_new_channel(app, message)
+        await handle_media_message(app, message)
         task_queue.task_done()
 
 async def main():
@@ -74,7 +74,6 @@ async def handle_media_message(client, message_tuple):
 
             if caption:
                 new_caption = await remove_unwanted(caption)
-                cap_no_ext = await remove_extension(new_caption)
 
                 logger.info(f"Downloading initial part of {file_id}...")
 
@@ -88,8 +87,8 @@ async def handle_media_message(client, message_tuple):
                 screenshots, thumbnail, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
                 if screenshots:
-                    logger.info(f"Thumbnail generated: {thumbnail_path}")
-                    cpy_msg = await message.copy(DB_CHANNEL_ID, caption=f"<code>{file_name}</code>", parse_mode=enums.ParseMode.HTML)
+                    logger.info(f"Thumbnail generated: {screenshots}")
+                    cpy_msg = await message.copy(DB_CHANNEL_ID, caption=f"<code>{new_caption}</code>", parse_mode=enums.ParseMode.HTML)
                     
                     # Prepare the file information to be stored
                     file_info = {
@@ -129,7 +128,7 @@ async def handle_media_message(client, message_tuple):
                             await message.reply_text(f"An error occurred while adding the file information. Please try again.")
                     
                     except Exception as e:
-                        await message.reply_text(f"Failed to store the video thumbnail for {file_name}. Please try again.")
+                        await message.reply_text(f"Failed to store the video thumbnail for {new_caption}. Please try again.")
                         logger.error(f"Error storing video thumbnail: {e}")
 
                 else:
