@@ -78,7 +78,7 @@ async def handle_media_message(client, message_tuple):
                 logger.info(f"Downloading initial part of {file_id}...")
 
                 reset_progress()
-                file_path = await app.download_media(message, file_name=f"{new_caption}", 
+                file_path = await app.download_media(message, file_name=f"{message.id}", 
                                                      progress=progress,
                                                      progress_args=("Download", initial_msg)
                                                      )
@@ -89,6 +89,14 @@ async def handle_media_message(client, message_tuple):
                 if screenshots:
                     logger.info(f"Thumbnail generated: {thumbnail_path}")
                     cpy_msg = await message.copy(DB_CHANNEL_ID, caption=f"<code>{file_name}</code>", parse_mode=enums.ParseMode.HTML)
+                    
+                    # Prepare the file information to be stored
+                    file_info = {
+                        "file_id": cpy_msg.id,
+                        "file_name": new_caption,
+                        "file_size": humanbytes(file_size)
+                    }
+                    
                     try:
                         # Store the first image (thumbnail)
                         with open(thumbnail, "rb") as f:
