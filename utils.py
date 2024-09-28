@@ -73,7 +73,7 @@ async def remove_extension(caption):
         logger.error(e)
         return None
 
-async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
+async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> tuple:
     try:
         # List to store individual thumbnails
         thumbnails = []
@@ -85,8 +85,11 @@ async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_
         ]
         duration = float(subprocess.check_output(duration_cmd).strip())
 
-        # Generate random intervals
-        intervals = [random.uniform(0, duration) for _ in range(num_thumbnails)]
+        # Generate evenly spaced intervals (excluding the very end)
+        intervals = [duration * i / (num_thumbnails + 1) for i in range(1, num_thumbnails + 1)]
+
+        # Variable to store a single thumbnail path before combining
+        single_thumbnail_path = None
 
         # Create thumbnails at specified intervals
         for i, interval in enumerate(intervals):
@@ -97,6 +100,10 @@ async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_
             ]
             subprocess.run(thumbnail_cmd, capture_output=True, check=True)
             thumbnails.append(thumbnail_path)
+
+            # Save the first thumbnail path (or any desired one)
+            if i == 0:  # Change index if you want a different thumbnail
+                single_thumbnail_path = thumbnail_path
 
         # Open all thumbnails and combine them into a grid
         images = [Image.open(thumb) for thumb in thumbnails]
@@ -120,11 +127,13 @@ async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_
         combined_thumbnail_path = f"{file_path}_combined.jpg"
         combined_image.save(combined_thumbnail_path)
 
-        # Clean up individual thumbnails
+        # Clean up individual thumbnails, except the single_thumbnail_path
         for thumb in thumbnails:
-            os.remove(thumb)
+            if thumb != single_thumbnail_path:
+                os.remove(thumb)
 
-        return combined_thumbnail_path, duration
+        # Return combined thumbnail path, a single thumbnail path, and duration
+        return combined_thumbnail_path, single_thumbnail_path, duration
     except Exception as e:
         print(f"Error generating combined thumbnail: {e}")
-        return None, None   
+        return None, None, None
