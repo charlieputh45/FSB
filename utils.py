@@ -1,9 +1,42 @@
+import os
 import re
 import random
 import subprocess
 import asyncio
+from config import logger 
 from PIL import Image
-from config import *
+
+async def remove_unwanted(input_string):
+    # Use regex to match .mkv or .mp4 and everything that follows
+    result = re.split(r'(\.mkv|\.mp4)', input_string)
+    # Join the first two parts to get the string up to the extension
+    return ''.join(result[:2])
+
+async def extract_tg_link(telegram_link):
+    try:
+        pattern = re.compile(r'https://t\.me/c/(-?\d+)/(\d+)')
+        match = pattern.match(telegram_link)
+        if match:
+            message_id = match.group(2)
+            return message_id
+        else:
+            return None
+    except Exception as e:
+        logger.error(e)
+
+
+def humanbytes(size):
+    # Function to format file size in a human-readable format
+    if not size:
+        return "0 B"
+    # Define byte sizes
+    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    i = 0
+    while size >= 1024 and i < len(suffixes) - 1:
+        size /= 1024
+        i += 1
+    f = ('%.2f' % size).rstrip('0').rstrip('.')
+    return f"{f} {suffixes[i]}"
 
 async def auto_delete_message(user_message, bot_message):
     try:
@@ -30,8 +63,8 @@ def get_readable_time(seconds: int) -> str:
     seconds = int(seconds)
     result += f" {seconds}s"
     return result
-    
-async def remove_unwanted(caption):
+
+async def remove_extension(caption):
     try:
         # Remove .mkv and .mp4 extensions if present
         cleaned_caption = re.sub(r'\.mkv|\.mp4|\.webm', '', caption)
@@ -39,55 +72,6 @@ async def remove_unwanted(caption):
     except Exception as e:
         logger.error(e)
         return None
-
-def humanbytes(size):
-    # Function to format file size in a human-readable format
-    if not size:
-        return "0 B"
-    # Define byte sizes
-    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-    i = 0
-    while size >= 1024 and i < len(suffixes) - 1:
-        size /= 1024
-        i += 1
-    f = ('%.2f' % size).rstrip('0').rstrip('.')
-    return f"{f} {suffixes[i]}"
-
-  
-async def extract_tg_link(telegram_link):
-    try:
-        pattern = re.compile(r'https://t\.me/c/(-?\d+)/(\d+)')
-        match = pattern.match(telegram_link)
-        if match:
-            message_id = match.group(2)
-            return message_id
-        else:
-            return None, None
-    except Exception as e:
-        logger.error(e)
-
-async def extract_channel_id(telegram_link):
-    try:
-        pattern = re.compile(r'https://t\.me/c/(-?\d+)/(\d+)')
-        match = pattern.match(telegram_link)
-        if match:
-            channel_id = match.group(1)
-            formatted_channel_id = f'-100{channel_id}'
-            return formatted_channel_id
-        else:
-            return None
-    except Exception as e:
-        logger.error(e)
-        
-'''
-async def download_initial_part(client, media, file_path, chunk_size):
-    # Open the file for writing in binary mode
-    with open(file_path, 'wb') as f:
-        async for chunk in client.stream_media(media):
-            f.write(chunk)
-            if f.tell() >= chunk_size:
-                break
-'''
 
 async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_columns: int) -> str:
     try:
@@ -143,23 +127,4 @@ async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_
         return combined_thumbnail_path, duration
     except Exception as e:
         print(f"Error generating combined thumbnail: {e}")
-        return None    
-
-'''
-def generate_thumbnail(file_path: str) -> str:
-    try:
-        # Output thumbnail path
-        thumbnail_path = f"{file_path}.jpg"
-
-        # Use ffmpeg to generate a thumbnail
-        (
-            zender
-            .input(file_path, ss='00:00:01')  # Seek to 1 second
-            .output(thumbnail_path, vframes=1)
-            .run(capture_stdout=True, capture_stderr=True)
-        )
-        return thumbnail_path
-    except Exception as e:
-        print(f"Error generating thumbnail: {e}")
-        return None
-'''
+        return None, None   
