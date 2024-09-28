@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from config import *
 from pymongo import MongoClient
 from utils import *
+from pyrogram import idle
 from pyromod import listen
 from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait
@@ -49,6 +50,10 @@ async def worker():
 async def main():
     # Start the worker
     loop.create_task(worker())
+
+    async with app:
+        await idle()
+
 
 with app:
     bot_username = (app.get_me()).username
@@ -134,9 +139,6 @@ async def handle_media_message(client, message_tuple):
                 else:
                     logger.info("Failed to generate thumbnails")
 
-                os.remove(screenshots)
-                os.remove(thumbnail)
-
                 await asyncio.sleep(3)
 
     except Exception as e:
@@ -168,6 +170,7 @@ async def log_command(client, message):
     except Exception as e:
         await app.send_message(user_id, f"Failed to send log file. Error: {str(e)}")
 
-# Start the bot
-print("starting bot")
-app.run()
+if __name__ == "__main__":
+    logger.info("Bot is starting...")
+    loop.run_until_complete(main())
+    logger.info("Bot has stopped.")
