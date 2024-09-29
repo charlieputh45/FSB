@@ -50,6 +50,7 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 DB_CHANNEL_ID = int(os.getenv('DB_CHANNEL_ID'))
 OWNER_USERNAME = os.getenv('OWNER_USERNAME')
 
+IMGBB_API_KEY = os.getenv('IMGBB_API_KEY')
 
 #MONGO URI
 MONGO_URI = os.getenv('MONGO_URI')
