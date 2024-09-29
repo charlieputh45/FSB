@@ -94,14 +94,14 @@ async def handle_media_message(client, message_tuple):
 
                 if screenshots:
                     logger.info(f"Thumbnail generated: {screenshots}")
-                    
+                    cpy_msg = await message.copy(DB_CHANNEL_ID, caption=f"<code>{new_caption}</code>", parse_mode=enums.ParseMode.HTML)
                     # Prepare the file information to be stored
                     file_info = {
-                        "file_id": message.id,
+                        "file_id": cpy_msg.id,
                         "file_name": new_caption,
                         "file_size": humanbytes(file_size)
                     }
-                    
+            
                     try:
                         # Upload the first image (thumbnail) to ImgBB
                         thumb_url = await upload_to_imgbb(thumbnail)
