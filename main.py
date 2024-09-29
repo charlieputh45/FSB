@@ -106,24 +106,19 @@ async def handle_media_message(client, message_tuple):
                     }
                     
                     try:
-                        # Store the first image (thumbnail)
-                        with open(thumbnail, "rb") as f:
-                            thumb = fs.put(f, filename=f"thumb_{message.id}.jpg")
+                        # Upload thumbnail to Telegraph
+                        thumbnail_url = upload_file(thumbnail)[0]
                         os.remove(thumbnail)
                     
-                        # Assuming you have another image path
-                        second_image_path = screenshots  
-                    
-                        # Store the second image
-                        with open(second_image_path, "rb") as f:
-                            screenshot = fs.put(f, filename=f"ss_{message.id}.jpg")
+                        # Upload screenshot to Telegraph
+                        screenshot_url = upload_file(screenshots)[0]
                         os.remove(screenshots)
                     
                         # Create the document to store in MongoDB
                         document = {
                             "file_info": file_info,
-                            "thumbnail_id": thumb,  
-                            "screenshot_id": screenshot,  
+                            "thumbnail_url": f"https://telegra.ph{thumbnail_url}",  
+                            "screenshot_url": f"https://telegra.ph{screenshot_url}",  
                             "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                     
@@ -149,9 +144,6 @@ async def handle_media_message(client, message_tuple):
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
-        if os.path.exists(screenshots):
-            os.remove(screenshots)
-            os.remove(thumbnail)
         if message.id in initial_messages:
             del initial_messages[message.id]  # Clean up the initial message reference
 
