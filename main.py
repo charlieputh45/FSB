@@ -1,7 +1,7 @@
 import uuid
-import gridfs
 import queue
 import asyncio
+import requests
 from time import time as tm
 from datetime import datetime, timezone
 from config import *
@@ -15,14 +15,12 @@ from status import *
 from asyncio import get_event_loop
 from pyrogram.enums import ParseMode
 
-
 # Initialize MongoDB client
 MONGO_COLLECTION = "users"
 mongo_client = MongoClient(MONGO_URI)  
 db = mongo_client[MONGO_DB_NAME]
 collection = db[COLLECTION_NAME]
 mongo_collection = db[MONGO_COLLECTION]
-fs = gridfs.GridFS(db)
 
 loop = get_event_loop()
 THUMBNAIL_COUNT = 9
@@ -96,29 +94,28 @@ async def handle_media_message(client, message_tuple):
 
                 if screenshots:
                     logger.info(f"Thumbnail generated: {screenshots}")
-                    cpy_msg = await message.copy(DB_CHANNEL_ID, caption=f"<code>{new_caption}</code>", parse_mode=enums.ParseMode.HTML)
                     
                     # Prepare the file information to be stored
                     file_info = {
-                        "file_id": cpy_msg.id,
+                        "file_id": message.id,
                         "file_name": new_caption,
                         "file_size": humanbytes(file_size)
                     }
                     
                     try:
-                        # Upload thumbnail to Telegraph
-                        thumbnail_url = upload_file(thumbnail)[0]
-                        os.remove(thumbnail)
-                    
-                        # Upload screenshot to Telegraph
-                        screenshot_url = upload_file(screenshots)[0]
-                        os.remove(screenshots)
-                    
+                        # Upload the first image (thumbnail) to ImgBB
+                        thumb_url = await upload_to_imgbb(thumbnail)
+                        os.remove(thumbnail)  # Remove the local file
+                        
+                        # Upload the second image (screenshot) to ImgBB
+                        screenshot_url = await upload_to_imgbb(screenshots)
+                        os.remove(screenshots)  # Remove the local file
+                        
                         # Create the document to store in MongoDB
                         document = {
                             "file_info": file_info,
-                            "thumbnail_url": f"https://telegra.ph{thumbnail_url}",  
-                            "screenshot_url": f"https://telegra.ph{screenshot_url}",  
+                            "thumbnail_url": thumb_url,  
+                            "screenshot_url": screenshot_url,  
                             "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                     
@@ -131,8 +128,8 @@ async def handle_media_message(client, message_tuple):
                             await message.reply_text(f"An error occurred while adding the file information. Please try again.")
                     
                     except Exception as e:
-                        await message.reply_text(f"Failed to store the video thumbnail for {new_caption}. Please try again.")
-                        logger.error(f"Error storing video thumbnail: {e}")
+                        await message.reply_text(f"Failed to upload the video thumbnail for {new_caption}. Please try again.")
+                        logger.error(f"Error uploading video thumbnail: {e}")
 
                 else:
                     logger.info("Failed to generate thumbnails")
@@ -143,7 +140,7 @@ async def handle_media_message(client, message_tuple):
         logger.error(f'{e}') 
     finally:
         if os.path.exists(file_path):
-            os.remove(file_path)
+            os.remove(file_path)        
         if message.id in initial_messages:
             del initial_messages[message.id]  # Clean up the initial message reference
 
@@ -258,6 +255,35 @@ async def log_command(client, message):
         await auto_delete_message(message, reply)
     except Exception as e:
         await app.send_message(user_id, f"Failed to send log file. Error: {str(e)}")
+
+async def upload_to_imgbb(image_path, expiration=None):
+    url = "https://api.imgbb.com/1/upload"
+    with open(image_path, "rb") as file:
+        files = {
+            "image": file,
+        }
+        payload = {
+            "key": IMGBB_API_KEY,
+        }
+
+        # Add expiration if provided
+        if expiration:
+            payload["expiration"] = expiration
+        
+        response = requests.post(url, data=payload, files=files)
+        
+        # Check for successful response
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('success'):
+                return result['data']['url']  # Return the direct image URL
+            else:
+                error_message = result.get('error', 'Unknown error')
+                logger.error(f"ImgBB upload failed: {error_message}")
+                return None
+        else:
+            logger.error(f"ImgBB API error: {response.status_code}")
+            return None
 
 if __name__ == "__main__":
     logger.info("Bot is starting...")
