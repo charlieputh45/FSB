@@ -137,3 +137,16 @@ async def generate_combined_thumbnail(file_path: str, num_thumbnails: int, grid_
     except Exception as e:
         print(f"Error generating combined thumbnail: {e}")
         return None, None, None
+
+async def extract_channel_id(telegram_link):
+    try:
+        pattern = re.compile(r'https://t\.me/c/(-?\d+)/(\d+)')
+        match = pattern.match(telegram_link)
+        if match:
+            channel_id = match.group(1)
+            formatted_channel_id = f'-100{channel_id}'
+            return formatted_channel_id
+        else:
+            return None
+    except Exception as e:
+        logger.error(e)
