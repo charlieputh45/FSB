@@ -32,7 +32,13 @@ app = Client(
     parse_mode=enums.ParseMode.HTML
 )
 
+async def main():
+    # Start the worker
+    loop.create_task(worker())
 
+    async with app:
+        await idle()
+        
 with app:
     bot_username = (app.get_me()).username
 
