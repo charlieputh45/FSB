@@ -1,8 +1,6 @@
-import uuid
 import queue
 import asyncio
 import requests
-from time import time as tm
 from datetime import datetime, timezone
 from config import *
 from pymongo import MongoClient
@@ -13,7 +11,6 @@ from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait
 from status import *
 from asyncio import get_event_loop
-from pyrogram.enums import ParseMode
 
 # Initialize MongoDB client
 MONGO_COLLECTION = "users"
@@ -144,99 +141,6 @@ async def handle_media_message(client, message_tuple):
         if message.id in initial_messages:
             del initial_messages[message.id]  # Clean up the initial message reference
 
-@app.on_message(filters.private & filters.command("upload") & filters.user(OWNER_USERNAME))
-async def upload_video(client, message):
-    if not message.reply_to_message or not (message.reply_to_message.document or message.reply_to_message.video):
-        await message.reply_text("Please reply to a video or document message to upload it.")
-        return
-
-    reply_msg = message.reply_to_message
-    media = reply_msg.document or reply_msg.video
-    file_id = reply_msg.id
-    file_size = media.file_size
-    caption = reply_msg.caption if reply_msg.caption else None
-
-    # Send an initial message for upload status
-    initial_msg = await message.reply_text("📤 Preparing to upload your file...")
-
-    try:
-        if media:
-            new_caption = await remove_unwanted(caption) if caption else None
-
-            logger.info(f"Downloading initial part of {file_id}...")
-
-            # Download the media file
-            reset_progress()
-            file_path = await app.download_media(reply_msg, file_name=f"{reply_msg.id}", 
-                                                 progress=progress,
-                                                 progress_args=("Download", initial_msg)
-                                                 )
-
-            # Generate thumbnails
-            screenshots, thumbnail, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
-
-            if screenshots:
-                logger.info(f"Thumbnail generated: {screenshots}")
-
-                # Send the video to the designated channel
-                uploaded_video = await app.send_video(
-                    DB_CHANNEL_ID,
-                    video=file_path,
-                    caption=f"<code>{new_caption}</code>" if new_caption else None,
-                    thumb=thumbnail,
-                    duration=duration,
-                    parse_mode=ParseMode.HTML
-                )
-
-                # Prepare file information
-                file_info = {
-                    "file_id": uploaded_video.id,
-                    "file_name": new_caption,
-                    "file_size": humanbytes(file_size)
-                }
-
-                try:
-                    # Store the thumbnail in GridFS
-                    with open(thumbnail, "rb") as f:
-                        thumb_id = fs.put(f, filename=f"thumb_{file_id}.jpg")
-                    os.remove(thumbnail)
-
-                    # Store the screenshot in GridFS
-                    with open(screenshots, "rb") as f:
-                        screenshot_id = fs.put(f, filename=f"ss_{file_id}.jpg")
-                    os.remove(screenshots)
-
-                    # Create the MongoDB document
-                    document = {
-                        "file_info": file_info,
-                        "thumbnail_id": thumb_id,
-                        "screenshot_id": screenshot_id,
-                        "timestamp": datetime.now(timezone.utc).isoformat()
-                    }
-
-                    # Insert the document into MongoDB
-                    collection.insert_one(document)
-                    await initial_msg.edit_text("Video uploaded successfully and information stored ✅")
-                except Exception as e:
-                    logger.error(f"Error while storing video information: {e}")
-                    await initial_msg.edit_text("An error occurred while storing the video information. Please try again.")
-
-            else:
-                logger.info("Failed to generate thumbnails.")
-                await initial_msg.edit_text("Failed to generate thumbnails. Upload aborted.")
-
-            await asyncio.sleep(3)
-
-    except Exception as e:
-        logger.error(f"Error during video upload: {e}")
-        await initial_msg.edit_text(f"An error occurred during the upload. Please try again.")
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(screenshots):
-            os.remove(screenshots)
-        if os.path.exists(thumbnail):
-            os.remove(thumbnail)
 
 @app.on_message(filters.private & filters.command("start"))
 async def start_command(client, message):
