@@ -23,10 +23,6 @@ loop = get_event_loop()
 THUMBNAIL_COUNT = 9
 GRID_COLUMNS = 3 # Number of columns in the grid
 
-# Create a global task queue
-task_queue = queue.Queue()
-initial_messages = {}  # Store initial messages for progress updates
-
 app = Client(
     "my_bot",
     api_id=API_ID,
@@ -36,110 +32,95 @@ app = Client(
     parse_mode=enums.ParseMode.HTML
 )
 
-async def worker():
-    while True:
-        message = await loop.run_in_executor(None, task_queue.get)
-        if message is None:
-            break  # Exit if a sentinel value is received
-        
-        await handle_media_message(app, message)
-        task_queue.task_done()
-
-async def main():
-    # Start the worker
-    loop.create_task(worker())
-
-    async with app:
-        await idle()
-
 
 with app:
     bot_username = (app.get_me()).username
 
-@app.on_message(filters.private & (filters.document | filters.video) & filters.user(OWNER_USERNAME))
-async def enqueue_message(client, message):
-    # Send an initial message when a new task is added to the queue
-    initial_msg = await message.reply_text("📥 Preparing to download your file...")
-
-    # Add the message and the initial message reference to the task queue
-    task_queue.put((message, initial_msg))
-    initial_messages[message.id] = initial_msg  # Store reference for later updates
-
-async def handle_media_message(client, message_tuple):
+@app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
+async def handle_media_message(client, message):
     try:
-        message, initial_msg = message_tuple  # Unpack the tuple
-        media = message.document or message.video
-        file_id = message.id
-        file_size = media.file_size
+        await message.delete()
 
-        if media:
-            caption = message.caption if message.caption else None
+        async def get_user_input(prompt):
+            rply = await message.reply_text(prompt)
+            link_msg = await app.listen(message.chat.id)
+            await rply.delete()
+            return link_msg.text
 
-            if caption:
-                new_caption = await remove_unwanted(caption)
+        # Collect input from the user
+        start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
+        end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
 
-                logger.info(f"Downloading initial part of {file_id}...")
+        batch_size = 199
+        for start in range(start_msg_id, end_msg_id + 1, batch_size):
+            end = min(start + batch_size - 1, end_msg_id)
+            # Get and copy messages
+            file_messages = await app.get_messages(db_channel_id, range(start, end + 1))
 
-                reset_progress()
-                file_path = await app.download_media(message, file_name=f"{message.id}", 
-                                                     progress=progress,
-                                                     progress_args=("Download", initial_msg)
-                                                     )
+            for file_message in file_messages:
+                media = file_message.document or file_message.video
+                
+                if media:
+                    caption = file_message.caption if file_message.caption else None
 
-                # Generating Thumbnails
-                screenshots, thumbnail, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+                    if caption:
+                        file_name = await remove_unwanted(caption)
 
-                if screenshots:
-                    logger.info(f"Thumbnail generated: {screenshots}")
-                    cpy_msg = await message.copy(DB_CHANNEL_ID, caption=f"<code>{new_caption}</code>", parse_mode=enums.ParseMode.HTML)
-                    # Prepare the file information to be stored
-                    file_info = {
-                        "file_id": cpy_msg.id,
-                        "file_name": new_caption,
-                        "file_size": humanbytes(file_size)
-                    }
-            
-                    try:
-                        # Upload the first image (thumbnail) to ImgBB
-                        thumb_url = await upload_to_imgbb(thumbnail)
-                        os.remove(thumbnail)  # Remove the local file
+                        logger.info(f"Downloading initial part of {file_message.id}...")
+                        initial_msg = await message.reply_text("Downloading")
+                        reset_progress()
+
+                        file_path = await app.download_media(file_message, 
+                                                             file_name=f"{file_message.id}", 
+                                                             progress=progress, 
+                                                             progress_args=("Download", initial_msg)
+                                                            )
+
+                        # Generate thumbnails
+                        screenshots, thumbnail, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
+
+                        if screenshots:
+                            logger.info(f"Thumbnail generated: {screenshots}")
+
+                            file_info = {"file_id": file_message.id, 
+                                         "file_name": file_name, 
+                                         "file_size": humanbytes(media.file_size)
+                                        }
+
+                            try:
+                                # Upload the thumbnail and screenshots to ImgBB
+                                thumb_url = await upload_to_imgbb(thumbnail)
+                                os.remove(thumbnail)
                         
-                        # Upload the second image (screenshot) to ImgBB
-                        screenshot_url = await upload_to_imgbb(screenshots)
-                        os.remove(screenshots)  # Remove the local file
+                                screenshot_url = await upload_to_imgbb(screenshots)
+                                os.remove(screenshots)
                         
-                        # Create the document to store in MongoDB
-                        document = {
-                            "file_info": file_info,
-                            "thumbnail_url": thumb_url,  
-                            "screenshot_url": screenshot_url,  
-                            "timestamp": datetime.now(timezone.utc).isoformat()
-                        }
-                    
-                        # Insert the document into MongoDB
-                        try:
-                            collection.insert_one(document)
-                            await initial_msg.edit_text("Media information added successfully ✅")
-                        except Exception as e:
-                            logger.error(f"Error in handle_media_message: {e}")
-                            await message.reply_text(f"An error occurred while adding the file information. Please try again.")
-                    
-                    except Exception as e:
-                        await message.reply_text(f"Failed to upload the video thumbnail for {new_caption}. Please try again.")
-                        logger.error(f"Error uploading video thumbnail: {e}")
+                                # Create the document to store in MongoDB
+                                document = {
+                                    "file_info": file_info,
+                                    "thumbnail_url": thumb_url, 
+                                    "screenshot_url": screenshot_url, 
+                                    "timestamp": datetime.now(timezone.utc).isoformat()
+                                }
 
-                else:
-                    logger.info("Failed to generate thumbnails")
+                                # Insert into MongoDB
+                                try:
+                                    collection.insert_one(document)
+                                except Exception as e:
+                                    logger.error(f"Error in handle_media_message: {e}")
+                                    await message.reply_text(f"An error occurred while adding the file information {file_name}")
 
-                await asyncio.sleep(3)
+                            except Exception as e:
+                                await message.reply_text(f"Failed to upload the video thumbnail for {file_name}. Please try again.")
+                                logger.error(f"Error uploading video thumbnail: {e}")
 
+                    await asyncio.sleep(3)  # Correctly indented
     except Exception as e:
-        logger.error(f'{e}') 
+        logger.error(f"Error in handle_media_message: {e}")
+        await message.reply_text("An unexpected error occurred.") 
     finally:
         if os.path.exists(file_path):
-            os.remove(file_path)        
-        if message.id in initial_messages:
-            del initial_messages[message.id]  # Clean up the initial message reference
+            os.remove(file_path)  
 
 
 @app.on_message(filters.private & filters.command("start"))
