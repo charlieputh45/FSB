@@ -31,10 +31,6 @@ app = Client(
     workers=1000,
     parse_mode=enums.ParseMode.HTML
 )
-
-async def main():
-    async with app:
-        await idle()
         
 with app:
     bot_username = (app.get_me()).username
@@ -212,8 +208,6 @@ async def copy_msg(client, message):
         await asyncio.sleep(e.value)
     except Exception as e:
         logger.error(f'{e}')
-
-if __name__ == "__main__":
-    logger.info("Bot is starting...")
-    loop.run_until_complete(main())
-    logger.info("Bot has stopped.")
+        
+logger.info("Bot is starting...")
+app.run()
