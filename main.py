@@ -285,6 +285,41 @@ async def upload_to_imgbb(image_path, expiration=None):
             logger.error(f"ImgBB API error: {response.status_code}")
             return None
 
+@app.on_message(filters.command("copy") & filters.user(OWNER_USERNAME))
+async def copy_msg(client, message):    
+    try:
+        await message.delete()
+        async def get_user_input(prompt):
+            rply = await message.reply_text(prompt)
+            link_msg = await app.listen(message.chat.id)
+            await rply.delete()
+            return link_msg.text
+        
+        # Collect input from the user
+        start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
+        end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
+        db_channel_id = int(await extract_channel_id(await get_user_input("Send db_channel link")))
+        destination_id = int(await extract_channel_id(await get_user_input("Send destination channel link")))
+
+        batch_size = 199
+        for start in range(start_msg_id, end_msg_id + 1, batch_size):
+            end = min(start + batch_size - 1, end_msg_id)  # Ensure we don't go beyond end_msg_id
+            # Get and copy messages
+            file_messages = await app.get_messages(db_channel_id, range(start, end + 1))
+
+            for file_message in file_messages:
+                if file_message and (file_message.document or file_message.video or file_message.audio or file_message.photo):
+                    captain = file_message.caption
+                    await file_message.copy(destination_id, caption=f"<b>{caption}</b>")
+                    await asyncio.sleep(3)
+                    
+        await message.reply_text("Messages copied successfully!✅")
+        
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
+    except Exception as e:
+        logger.error(f'{e}')
+
 if __name__ == "__main__":
     logger.info("Bot is starting...")
     loop.run_until_complete(main())
