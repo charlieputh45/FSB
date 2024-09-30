@@ -309,7 +309,7 @@ async def copy_msg(client, message):
 
             for file_message in file_messages:
                 if file_message and (file_message.document or file_message.video or file_message.audio or file_message.photo):
-                    captain = file_message.caption
+                    caption = file_message.caption
                     await file_message.copy(destination_id, caption=f"<b>{caption}</b>")
                     await asyncio.sleep(3)
                     
