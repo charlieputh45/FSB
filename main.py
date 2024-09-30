@@ -57,7 +57,7 @@ async def handle_media_message(client, message):
         for start in range(start_msg_id, end_msg_id + 1, batch_size):
             end = min(start + batch_size - 1, end_msg_id)
             # Get and copy messages
-            file_messages = await app.get_messages(db_channel_id, range(start, end + 1))
+            file_messages = await app.get_messages(DB_CHANNEL_ID, range(start, end + 1))
 
             for file_message in file_messages:
                 media = file_message.document or file_message.video
