@@ -33,9 +33,6 @@ app = Client(
 )
 
 async def main():
-    # Start the worker
-    loop.create_task(worker())
-
     async with app:
         await idle()
         
