@@ -1,13 +1,14 @@
 import queue
 import asyncio
 import requests
+from inspect import signature
 from datetime import datetime, timezone
 from config import *
 from pymongo import MongoClient
 from utils import *
 from pyrogram import idle
 from pyromod import listen
-from pyrogram import Client, filters, enums
+from pyrogram import Client, filters, enums, utils as pyroutils
 from pyrogram.errors import FloodWait
 from status import *
 from asyncio import get_event_loop
@@ -18,6 +19,9 @@ mongo_client = MongoClient(MONGO_URI)
 db = mongo_client[MONGO_DB_NAME]
 collection = db[COLLECTION_NAME]
 mongo_collection = db[MONGO_COLLECTION]
+
+pyroutils.MIN_CHAT_ID = -999999999999
+pyroutils.MIN_CHANNEL_ID = -100999999999999
 
 loop = get_event_loop()
 THUMBNAIL_COUNT = 9
@@ -34,6 +38,11 @@ app = Client(
         
 with app:
     bot_username = (app.get_me()).username
+
+def wztgClient(*args, **kwargs):
+    if 'max_concurrent_transmissions' in signature(tgClient.__init__).parameters:
+        kwargs['max_concurrent_transmissions'] = 1000
+    return tgClient(*args, **kwargs)
 
 @app.on_message(filters.command("send") & filters.user(OWNER_USERNAME))
 async def handle_media_message(client, message):
