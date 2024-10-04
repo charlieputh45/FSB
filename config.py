@@ -3,22 +3,17 @@ import os
 import logging
 from os import environ
 from dotenv import load_dotenv
-from logging.handlers import RotatingFileHandler
 from requests import get as rget
 
 LOG_FILE_NAME = "log.txt"
 
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s - %(levelname)s] - %(name)s - %(message)s",
     datefmt='%d-%b-%y %H:%M:%S',
     handlers=[
-        RotatingFileHandler(
-            LOG_FILE_NAME,
-            maxBytes=50000000,
-            backupCount=10
-        ),
-        logging.StreamHandler()
+        logging.StreamHandler()  # Only log to console
     ]
 )
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
