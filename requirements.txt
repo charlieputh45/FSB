@@ -1,6 +1,6 @@
 python-dotenv
-pyrofork
-pyromod==2.2.11
+pyrofork==2.2.11
+pyromod==1.5
 TgCrypto
 pymongo
 
