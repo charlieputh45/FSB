@@ -7,7 +7,7 @@ start_time = None
 previous_time = None
 previous_bytes = 0
 
-async def progress(current, total, status, message):
+async def progress(current, total):
     global start_time, previous_time, previous_bytes
 
     # Initialize timers and bytes on the first call
@@ -43,17 +43,15 @@ async def progress(current, total, status, message):
 
         # Prepare the message content
         progress_message = (
-            f"{status}: {percentage:.1f}%\n"
-            f"Transferred: {current / (1024 * 1024):.2f} MB of {total_mb:.2f} MB\n"
-            f"Speed: {speed_mbps:.2f} MB/s\n"
+            f"Download: {percentage:.1f}% | "
+            f"Transferred: {current / (1024 * 1024):.2f} MB of {total_mb:.2f} MB | "
+            f"Speed: {speed_mbps:.2f} MB/s | "
             f"Elapsed Time: {int(elapsed_time // 60)}m {int(elapsed_time % 60)}s"
         )
 
-        # Update the message in Telegram
-        try:
-            await message.edit_text(progress_message)
-        except Exception as e:
-            print(f"Error editing message: {e}")
+        # Write the progress message to stdout and flush
+        sys.stdout.write('\r' + progress_message)  # Use '\r' to return to the start of the line
+        sys.stdout.flush()  # Ensure the output is flushed immediately
 
         
 async def finish_task(status):
