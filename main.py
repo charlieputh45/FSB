@@ -83,7 +83,7 @@ async def handle_media_message(client, message):
                         # Generate thumbnails after downloading
                         screenshots, thumbnail, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
-                        if screenshots:
+                        if screenshots and thumbnail:
                             logger.info(f"Thumbnail generated: {screenshots}")
 
                             file_info = {
