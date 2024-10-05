@@ -83,7 +83,7 @@ async def handle_media_message(client, message):
                         # Generate thumbnails after downloading
                         screenshots, thumbnail, duration = await generate_combined_thumbnail(file_path, THUMBNAIL_COUNT, GRID_COLUMNS)
 
-                        if screenshots and thumbnail:
+                        if screenshots:
                             logger.info(f"Thumbnail generated: {screenshots}")
 
                             file_info = {
@@ -112,18 +112,14 @@ async def handle_media_message(client, message):
                                 try:
                                     result = collection.insert_one(document)
                                     logger.info(f"File {file_name} uploaded and data saved successfully.")
-                                    os.remove(file_path)
                                 except Exception as e:
                                     logger.error(f"Error in handle_media_message: {e}")
                                     await app.send_message(user_id, text=f"An error occurred while adding the file information {file_name}")
-                                    os.remove(file_path)
 
                             except Exception as e:
                                 await app.send_message(user_id, text_id=f"Failed to upload the video thumbnail for {file_name}. Please try again.")
                                 logger.error(f"Error uploading video thumbnail: {e}")
-                                os.remove(file_path)
-                        else:
-                            await message.reply_text(f"unable to generate thumbnail for {file_name}")
+
                     await asyncio.sleep(3)  # To prevent rate limiting
 
     except Exception as e:
