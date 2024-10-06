@@ -120,8 +120,10 @@ async def handle_media_message(client, message):
                                     try:
                                         collection.insert_one(document)
                                         logger.info(f"File {file_name} uploaded and data saved successfully.")
+                                        os.remove(file_path)
                                     except Exception as e:
                                         logger.error(f"Error in handle_media_message: {e}")
+                                        os.remove(file_path)
                                         await app.send_message(user_id, text=f"An error occurred while adding the file information {file_name}")
 
                             except Exception as e:
