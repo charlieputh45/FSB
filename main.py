@@ -131,6 +131,7 @@ async def handle_media_message(client, message):
                                 logger.error(f"Error uploading video thumbnail: {e}")
 
                     await asyncio.sleep(3)  # To prevent rate limiting
+            await message.reply_text("Data Update Successfull")
 
     except Exception as e:
         logger.error(f"Error in handle_media_message: {e}")
