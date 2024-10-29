@@ -49,5 +49,5 @@ IMGBB_API_KEY = os.getenv('IMGBB_API_KEY')
 
 #MONGO URI
 MONGO_URI = os.getenv('MONGO_URI')
-MONGO_DB_NAME = "tgfiles"
+MONGO_DB_NAME = "tgmusic"
 COLLECTION_NAME = 'details'
