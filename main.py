@@ -181,7 +181,7 @@ async def handle_media_message(client, message):
 
                             file_info = {
                                 "file_id": file_message.id, 
-                                "file_name": media.title, 
+                                "title": media.title, 
                                 "artist": media.performer,
                                 "file_size": humanbytes(media.file_size)
                             }
