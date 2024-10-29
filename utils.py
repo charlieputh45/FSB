@@ -1,10 +1,14 @@
 import os
 import re
-import random
 import subprocess
 import asyncio
 from config import logger 
 from PIL import Image
+from mutagen.mp3 import MP3
+from mutagen.flac import FLAC
+from mutagen.mp4 import MP4
+from mutagen.id3 import ID3, APIC
+from mutagen import File as MutagenFile
 
 async def remove_unwanted(input_string):
     # Use regex to match .mkv or .mp4 and everything that follows
@@ -151,3 +155,28 @@ async def extract_channel_id(telegram_link):
             return None
     except Exception as e:
         logger.error(e)
+
+async def get_audio_thumbnail(audio_path, output_dir="downloads"):
+    audio = MutagenFile(audio_path)
+    thumbnail_path = os.path.join(output_dir, "audio_thumbnail.jpg")
+
+    if isinstance(audio, MP3):
+        if audio.tags and isinstance(audio.tags, ID3):
+            for tag in audio.tags.values():
+                if isinstance(tag, APIC):
+                    with open(thumbnail_path, "wb") as img_file:
+                        img_file.write(tag.data)
+                    return thumbnail_path
+    elif isinstance(audio, FLAC):
+        if audio.pictures:
+            with open(thumbnail_path, "wb") as img_file:
+                img_file.write(audio.pictures[0].data)
+            return thumbnail_path
+    elif isinstance(audio, MP4):
+        if audio.tags and 'covr' in audio.tags:
+            cover = audio.tags['covr'][0]
+            with open(thumbnail_path, "wb") as img_file:
+                img_file.write(cover)
+            return thumbnail_path
+    
+    return None
