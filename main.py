@@ -140,6 +140,92 @@ async def handle_media_message(client, message):
         if os.path.exists(file_path):
             os.remove(file_path)
 
+@app.on_message(filters.command("sendm") & filters.user(OWNER_USERNAME))
+async def handle_media_message(client, message):
+    user_id = message.from_user.id
+    try:
+        async def get_user_input(prompt):
+            rply = await message.reply_text(prompt)
+            link_msg = await app.listen(message.chat.id)
+            return link_msg.text
+
+        # Collect input from the user
+        start_msg_id = int(await extract_tg_link(await get_user_input("Send first post link")))
+        end_msg_id = int(await extract_tg_link(await get_user_input("Send end post link")))
+
+        batch_size = 199
+        for start in range(start_msg_id, end_msg_id + 1, batch_size):
+            end = min(start + batch_size - 1, end_msg_id)
+            # Get and copy messages
+            file_messages = await app.get_messages(DB_CHANNEL_ID, range(start, end + 1))
+
+            for file_message in file_messages:
+                media = file_message.audio
+                
+                if media:
+
+                        logger.info(f"Starting download of {file_message.id}...")
+
+                        # Download media with progress updates
+                        audio_path = await app.download_media(
+                            file_message,
+                            file_name=f"{file_message.id}",
+                            progress=progress 
+                        )
+
+                        # Generate thumbnails after downloading
+                        thumb_path = await get_audio_thumbnail(audio_path)
+
+                        if thumb_path:
+                            logger.info(f"Thumbnail generated: {thumb_path}")
+
+                            file_info = {
+                                "file_id": file_message.id, 
+                                "file_name": media.title, 
+                                "artist": media.performer,
+                                "file_size": humanbytes(media.file_size)
+                            }
+
+                            try:
+                                # Upload thumbnail and screenshots to ImgBB
+                                thumb = imgclient.upload(file=f"{thumb_path}")
+                                os.remove(thumb_path)
+
+                                await asyncio.sleep(5)
+                                                        
+                                # Create the document to store in MongoDB
+                                document = {
+                                    "file_info": file_info,
+                                    "thumbnail_url": thumb.url, 
+                                    "timestamp": datetime.now(timezone.utc).isoformat()
+                                }
+
+                                if thumb:
+                                    # Insert into MongoDB
+                                    try:
+                                        collection.insert_one(document)
+                                        logger.info(f"File {media.title} uploaded and data saved successfully.")
+                                        os.remove(audio_path)
+                                    except Exception as e:
+                                        logger.error(f"Error in handle_media_message: {e}")
+                                        os.remove(audio_path)
+                                        await app.send_message(user_id, text=f"An error occurred while adding the file information {media.title}")
+
+                            except Exception as e:
+                                await app.send_message(user_id, text=f"Failed to upload the video thumbnail for {media.title}. Please try again.")
+                                logger.error(f"Error uploading video thumbnail: {e}")
+
+                        await asyncio.sleep(3)  # To prevent rate limiting
+            await message.reply_text("Data Update Successfull")
+
+    except Exception as e:
+        logger.error(f"Error in handle_media_message: {e}")
+        await message.reply_text("An unexpected error occurred.") 
+    finally:
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+
+
 
 @app.on_message(filters.private & filters.command("start"))
 async def start_command(client, message):
